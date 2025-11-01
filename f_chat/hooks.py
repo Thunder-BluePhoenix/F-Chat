@@ -33,8 +33,8 @@ app_include_js = [
     # "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js",
     # "assets/f_chat/js/chat_integratioonn.js",
     # "assets/f_chat/js/chat_realtimee.js"
-    "assets/f_chat/js/nav_chatf10.js",
-    "assets/f_chat/js/chat_features_extended.js",  # Extended features: email, voice, broadcast, calls
+    "assets/f_chat/js/nav_chatf104.js",
+    "assets/f_chat/js/chat_features_extended4.js",  # Extended features: email, voice, broadcast, calls
 
     # "assets/f_chat/js/nav_chat27.js",
 
