@@ -63,12 +63,24 @@ def upload_chat_file(room_id):
             file_extension = os.path.splitext(file_obj.filename)[1]
             unique_filename = f"chat_{room_id}_{timestamp}_{file_obj.filename}"
 
+            # Ensure Chat_Files folder exists
+            folder_name = "Home/Chat_Files"
+            if not frappe.db.exists("File", {"file_name": folder_name, "is_folder": 1}):
+                # Create the folder
+                folder = frappe.get_doc({
+                    "doctype": "File",
+                    "file_name": "Chat_Files",
+                    "is_folder": 1,
+                    "folder": "Home"
+                })
+                folder.insert(ignore_permissions=True)
+
             # Create File document
             file_doc = frappe.get_doc({
                 "doctype": "File",
                 "file_name": unique_filename,
                 "attached_to_doctype": "Chat Message",
-                "folder": "Home/Chat_Files",
+                "folder": folder_name,
                 "is_private": 1 if room.is_private else 0,
                 "content": content
             })

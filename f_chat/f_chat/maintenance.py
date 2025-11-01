@@ -2,8 +2,9 @@
 import frappe
 import os
 from frappe import _
-from frappe.utils import now_datetime, add_days, cint, get_datetime
+from frappe.utils import now_datetime, add_days, add_to_date, cint, get_datetime
 import json
+from datetime import timedelta
 
 def cleanup_old_messages():
     """
@@ -142,34 +143,64 @@ def update_user_online_status():
     try:
         if not is_chat_enabled():
             return
-            
+
         # Mark users as offline if they haven't been active in the last 5 minutes
-        offline_threshold = add_days(now_datetime(), minutes=-5)
-        
-        # Update with proper error handling
-        try:
-            updated = frappe.db.sql("""
-                UPDATE `tabUser` 
-                SET custom_chat_status = 'offline'
-                WHERE custom_chat_status != 'offline'
-                AND (
-                    custom_last_chat_activity IS NULL 
-                    OR custom_last_chat_activity < %(threshold)s
-                )
-            """, {"threshold": offline_threshold})
-            
-            frappe.db.commit()
-            
-            if updated:
-                frappe.logger().info(f"Updated {updated} users to offline status")
-                
-        except Exception as e:
-            # Handle cases where custom fields might not exist
-            if "Unknown column" in str(e):
-                frappe.logger().warning("Chat custom fields not found in User doctype")
-            else:
-                raise e
-        
+        # Fix: Use add_to_date() instead of add_days() for minutes
+        offline_threshold = add_to_date(now_datetime(), minutes=-5)
+
+        # Update with proper error handling including deadlock retry
+        max_retries = 3
+        retry_count = 0
+
+        while retry_count < max_retries:
+            try:
+                # Check if custom fields exist first
+                if not frappe.db.exists("Custom Field", {"dt": "User", "fieldname": "custom_chat_status"}):
+                    frappe.logger().warning("custom_chat_status field not found on User doctype")
+                    return
+
+                updated = frappe.db.sql("""
+                    UPDATE `tabUser`
+                    SET custom_chat_status = 'offline'
+                    WHERE custom_chat_status != 'offline'
+                    AND (
+                        custom_last_chat_activity IS NULL
+                        OR custom_last_chat_activity < %(threshold)s
+                    )
+                """, {"threshold": offline_threshold})
+
+                frappe.db.commit()
+
+                if updated:
+                    frappe.logger().info(f"Updated {updated} users to offline status")
+
+                break  # Success, exit retry loop
+
+            except Exception as e:
+                error_msg = str(e)
+
+                # Handle cases where custom fields might not exist
+                if "Unknown column" in error_msg:
+                    frappe.logger().warning("Chat custom fields not found in User doctype")
+                    break
+
+                # Handle deadlock errors with retry
+                elif "Deadlock" in error_msg or "Record has changed" in error_msg:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        frappe.logger().warning(f"Deadlock detected, retrying ({retry_count}/{max_retries})...")
+                        frappe.db.rollback()
+                        # Brief delay before retry
+                        import time
+                        time.sleep(0.5 * retry_count)  # Exponential backoff: 0.5s, 1s, 1.5s
+                    else:
+                        frappe.logger().error(f"Failed to update user status after {max_retries} retries due to deadlock")
+                        frappe.log_error(f"Deadlock updating user online status: {error_msg}", "Chat Maintenance Deadlock")
+                        break
+                else:
+                    # Other errors, don't retry
+                    raise e
+
     except Exception as e:
         frappe.log_error(f"Error updating user online status: {str(e)}", "Chat Maintenance")
 

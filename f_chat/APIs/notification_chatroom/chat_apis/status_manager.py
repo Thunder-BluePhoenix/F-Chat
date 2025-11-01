@@ -113,6 +113,7 @@ class ChatStatusManager:
                 # Handle the specific timestamp mismatch error
                 if attempt < max_retries - 1:
                     frappe.log_error(f"Timestamp mismatch for user {user}, retrying attempt {attempt + 1}")
+                    frappe.db.rollback()
                     # Wait a bit before retry
                     import time
                     time.sleep(0.1 * (attempt + 1))
@@ -120,15 +121,28 @@ class ChatStatusManager:
                 else:
                     frappe.log_error(f"Failed to update user {user} status after {max_retries} attempts")
                     return False
-                    
+
             except Exception as e:
-                if "Unknown column" in str(e):
+                error_msg = str(e)
+                if "Unknown column" in error_msg:
                     # Custom fields don't exist, this is acceptable
                     return False
+                elif "Deadlock" in error_msg or "Record has changed" in error_msg:
+                    # Handle deadlock errors with retry
+                    if attempt < max_retries - 1:
+                        frappe.logger().warning(f"Deadlock updating user {user} status, retrying attempt {attempt + 1}")
+                        frappe.db.rollback()
+                        import time
+                        time.sleep(0.2 * (attempt + 1))  # Exponential backoff
+                        continue
+                    else:
+                        frappe.log_error(f"Failed to update user {user} status after {max_retries} attempts due to deadlock")
+                        return False
                 else:
-                    frappe.log_error(f"Database update failed for user {user}: {str(e)}")
+                    frappe.log_error(f"Database update failed for user {user}: {error_msg}")
                     if attempt == max_retries - 1:
                         return False
+                    frappe.db.rollback()
                     continue
         
         return False
@@ -243,49 +257,72 @@ class ChatStatusManager:
         Safely update multiple user statuses in bulk
         Used by cron jobs to avoid individual document conflicts
         """
-        try:
-            current_time = now_datetime()
-            offline_threshold = add_to_date(current_time, minutes=-status_threshold_minutes)
-            
-            if not self._check_custom_fields():
-                return {"success": False, "error": "Custom fields not found"}
-            
-            # Update users to offline who haven't been active
-            offline_result = frappe.db.sql("""
-                UPDATE `tabUser` 
-                SET custom_chat_status = 'offline'
-                WHERE (
-                    last_active < %(threshold)s 
-                    OR last_active IS NULL
-                )
-                AND custom_chat_status != 'offline'
-                AND enabled = 1
-                AND user_type = 'System User'
-            """, {"threshold": offline_threshold})
-            
-            # Update recently active users to online
-            online_threshold = add_to_date(current_time, minutes=-2)
-            online_result = frappe.db.sql("""
-                UPDATE `tabUser` 
-                SET custom_chat_status = 'online'
-                WHERE last_active >= %(threshold)s 
-                AND custom_chat_status != 'online'
-                AND enabled = 1
-                AND user_type = 'System User'
-            """, {"threshold": online_threshold})
-            
-            frappe.db.commit()
-            
-            return {
-                "success": True,
-                "updated_offline": offline_result,
-                "updated_online": online_result,
-                "timestamp": str(current_time)
-            }
-            
-        except Exception as e:
-            frappe.log_error(f"Bulk status update failed: {str(e)}")
-            return {"success": False, "error": str(e)}
+        max_retries = 3
+        retry_count = 0
+
+        while retry_count < max_retries:
+            try:
+                current_time = now_datetime()
+                offline_threshold = add_to_date(current_time, minutes=-status_threshold_minutes)
+
+                if not self._check_custom_fields():
+                    return {"success": False, "error": "Custom fields not found"}
+
+                # Update users to offline who haven't been active
+                offline_result = frappe.db.sql("""
+                    UPDATE `tabUser`
+                    SET custom_chat_status = 'offline'
+                    WHERE (
+                        last_active < %(threshold)s
+                        OR last_active IS NULL
+                    )
+                    AND custom_chat_status != 'offline'
+                    AND enabled = 1
+                    AND user_type = 'System User'
+                """, {"threshold": offline_threshold})
+
+                # Update recently active users to online
+                online_threshold = add_to_date(current_time, minutes=-2)
+                online_result = frappe.db.sql("""
+                    UPDATE `tabUser`
+                    SET custom_chat_status = 'online'
+                    WHERE last_active >= %(threshold)s
+                    AND custom_chat_status != 'online'
+                    AND enabled = 1
+                    AND user_type = 'System User'
+                """, {"threshold": online_threshold})
+
+                frappe.db.commit()
+
+                return {
+                    "success": True,
+                    "updated_offline": offline_result,
+                    "updated_online": online_result,
+                    "timestamp": str(current_time)
+                }
+
+            except Exception as e:
+                error_msg = str(e)
+
+                # Handle deadlock errors with retry
+                if "Deadlock" in error_msg or "Record has changed" in error_msg:
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        frappe.logger().warning(f"Deadlock in bulk_update_user_statuses, retrying ({retry_count}/{max_retries})...")
+                        frappe.db.rollback()
+                        # Brief delay before retry with exponential backoff
+                        import time
+                        time.sleep(0.5 * retry_count)
+                        continue
+                    else:
+                        frappe.log_error(f"Bulk status update failed after {max_retries} retries due to deadlock: {error_msg}", "Status Manager Deadlock")
+                        return {"success": False, "error": f"Deadlock after {max_retries} retries"}
+                else:
+                    # Other errors, don't retry
+                    frappe.log_error(f"Bulk status update failed: {error_msg}")
+                    return {"success": False, "error": error_msg}
+
+        return {"success": False, "error": "Max retries exceeded"}
 
 
 # Global instance
