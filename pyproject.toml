@@ -9,6 +9,11 @@ readme = "README.md"
 dynamic = ["version"]
 dependencies = [
     # "frappe~=15.0.0" # Installed and managed by bench.
+    "qrcode[pil]",
+    "pyzbar",
+    "pandas",
+    "openpyxl"
+
 ]
 
 [build-system]
@@ -47,6 +52,9 @@ ignore = [
     "F405", # can't detect undefined names from * import
     "F722", # syntax error in forward type annotation
     "W191", # indentation contains tabs
+    "UP030", # Use implicit references for positional format fields (translations)
+    "UP031", # Use format specifiers instead of percent format
+    "UP032", # Use f-string instead of `format` call (translations)
 ]
 typing-modules = ["frappe.types.DF"]
 
@@ -54,3 +62,10 @@ typing-modules = ["frappe.types.DF"]
 quote-style = "double"
 indent-style = "tab"
 docstring-code-format = true
+
+
+[deploy.dependencies.apt]
+packages = [
+    "cmake",
+    "libgl-mesa-glx"
+]

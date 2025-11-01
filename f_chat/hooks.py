@@ -23,15 +23,40 @@ app_license = "gpl-3.0"
 
 # Includes in <head>
 # ------------------
+app_include_css = [
+    # "assets/f_chat/css/chat_styles.css",
+    # "assets/f_chat/css/chat_enhanced.css"
+    "assets/f_chat/css/nav_chat_style2.css"
+]
+# app_include_js = "/assets/f_chat/js/f_chat.js"
+app_include_js = [
+    # "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js",
+    # "assets/f_chat/js/chat_integratioonn.js",
+    # "assets/f_chat/js/chat_realtimee.js" 
+    "assets/f_chat/js/nav_chatf10.js",
+
+    # "assets/f_chat/js/nav_chat27.js",
+
+    # "assets/f_chat/js/nav_chat_enhanced3.js"  
+]
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/f_chat/css/f_chat.css"
 # app_include_js = "/assets/f_chat/js/f_chat.js"
-
+website_context = {
+    "chat_enabled": True,
+    "max_file_size": 26214400,  # 10MB
+    "supported_file_types": ["image/*", "application/pdf", "text/*", ".doc", ".docx", ".xls", ".xlsx"]
+}
 # include js, css files in header of web template
 # web_include_css = "/assets/f_chat/css/f_chat.css"
 # web_include_js = "/assets/f_chat/js/f_chat.js"
-
+websocket_events = {
+    "chat_message": "f_chat.f_chat.doctype.chat_message.chat_message.handle_websocket_message",
+    "chat_room_join": "f_chat.f_chat.doctype.chat_message.chat_message.handle_user_join_room",
+    "chat_room_leave": "f_chat.f_chat.doctype.chat_message.chat_message.handle_user_leave_room",
+    "typing_indicator": "f_chat.f_chat.doctype.chat_message.chat_message.handle_typing_indicator"
+}
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "f_chat/public/scss/website"
 
@@ -144,28 +169,68 @@ app_license = "gpl-3.0"
 # 		"on_trash": "method"
 # 	}
 # }
-
+doc_events = {
+   
+    "Chat Message": {
+        "after_insert": "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.handle_new_message_notification",
+        "before_save": "f_chat.f_chat.doctype.chat_message.chat_message.before_save_hook",
+        "on_update": "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.handle_message_update_notification"
+    },
+    "Chat Room": {
+        "after_insert": "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.handle_new_room_notification",
+        "on_update": "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.handle_room_update_notification"
+    },
+    "Chat Room Member": {
+        "after_insert": "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.handle_member_added_notification",
+        "on_trash": "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.handle_member_removed_notification"
+    },
+    "User": {
+        "on_update": "f_chat.f_chat.maintenance.update_user_chat_permissions"
+    }
+}
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"f_chat.tasks.all"
-# 	],
-# 	"daily": [
-# 		"f_chat.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"f_chat.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"f_chat.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"f_chat.tasks.monthly"
-# 	],
-# }
-
+scheduler_events = {
+    # "all": [
+    #     "f_chat.cron_jobs.sent_asa_form_link.sent_asa_form_link"
+    # ],
+    "daily": [
+        "f_chat.f_chat.maintenance.cleanup_old_messages",
+        "f_chat.f_chat.maintenance.update_room_statistics",
+        "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.cleanup_user_status_cache"
+        
+    ],
+    "cron": {
+        # "0 0 * * *": [
+        #     "f_chat.vendor_onboarding.doctype.vendor_onboarding.vendor_onboarding.handle_expirations"
+        # ],
+        # "*/1 * * * *": [
+        #     "f_chat.APIs.req_for_quotation.rfq_reminder.block_quotation_link",
+        #     "f_chat.APIs.sap.send_sap_error_email.uncheck_sap_error_email",
+        #     "f_chat.APIs.req_for_quotation.rfq_reminder.quotation_count_reminder_mail"
+        # ],
+        "0 2 * * *": [  # Run at 2 AM daily
+            "f_chat.f_chat.maintenance.cleanup_deleted_files"
+        ],
+        
+        "*/15 * * * *": [  # Every 15 minutes
+            "f_chat.f_chat.maintenance.update_user_online_status"      
+        ],
+        "*/1 * * * *": [  # Every minute - for real-time status updates
+            "f_chat.APIs.notification_chatroom.chat_apis.realtime_enhanced.update_user_activity_status", 
+        ]
+    }    
+	# "hourly": [
+	# 	"f_chat.tasks.hourly"
+	# ],
+	# "weekly": [
+	# 	"f_chat.tasks.weekly"
+	# ],
+	# "monthly": [
+	# 	"f_chat.tasks.monthly"
+	# ],
+}
 # Testing
 # -------
 
@@ -193,7 +258,63 @@ app_license = "gpl-3.0"
 # -----------------------------------------------------------
 
 # ignore_links_on_delete = ["Communication", "ToDo"]
+override_whitelisted_methods = {
 
+    # Core Chat Room APIs (from APIs/notification_chatroom/chat_apis/)
+    "f_chat.get_user_chat_rooms": "f_chat.APIs.notification_chatroom.chat_apis.chat_api.get_user_chat_rooms",
+    "f_chat.create_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.chat_api.create_chat_room",
+    "f_chat.get_chat_messages": "f_chat.APIs.notification_chatroom.chat_apis.chat_api.get_chat_messages",
+    "f_chat.send_message": "f_chat.APIs.notification_chatroom.chat_apis.chat_api.send_message",
+    "f_chat.add_reaction": "f_chat.APIs.notification_chatroom.chat_apis.chat_api.add_reaction",
+    "f_chat.edit_message": "f_chat.APIs.notification_chatroom.chat_apis.chat_api.edit_message",
+    "f_chat.delete_message": "f_chat.APIs.notification_chatroom.chat_apis.chat_api.delete_message",
+    
+    # Room Management APIs
+    "f_chat.get_room_details": "f_chat.APIs.notification_chatroom.chat_apis.room_management.get_room_details",
+    "f_chat.add_room_member": "f_chat.APIs.notification_chatroom.chat_apis.room_management.add_room_member",
+    "f_chat.remove_room_member": "f_chat.APIs.notification_chatroom.chat_apis.room_management.remove_room_member",
+    "f_chat.update_member_role": "f_chat.APIs.notification_chatroom.chat_apis.room_management.update_member_role",
+    "f_chat.mute_unmute_member": "f_chat.APIs.notification_chatroom.chat_apis.room_management.mute_unmute_member",
+    "f_chat.update_room_settings": "f_chat.APIs.notification_chatroom.chat_apis.room_management.update_room_settings",
+    "f_chat.archive_room": "f_chat.APIs.notification_chatroom.chat_apis.room_management.archive_room",
+    "f_chat.search_users_for_room": "f_chat.APIs.notification_chatroom.chat_apis.room_management.search_users_for_room",
+    "f_chat.get_team_chat_rooms": "f_chat.APIs.notification_chatroom.chat_apis.room_management.get_team_chat_rooms",
+    "f_chat.join_team_room": "f_chat.APIs.notification_chatroom.chat_apis.room_management.join_team_room",
+    
+    # File Upload APIs
+    "f_chat.upload_chat_file": "f_chat.APIs.notification_chatroom.chat_apis.file_upload.upload_chat_file",
+    "f_chat.get_chat_file_preview": "f_chat.APIs.notification_chatroom.chat_apis.file_upload.get_chat_file_preview",
+    
+    # Real-time Event APIs
+    "f_chat.join_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.join_chat_room",
+    "f_chat.leave_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.leave_chat_room",
+    "f_chat.send_typing_indicator": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.send_typing_indicator",
+    "f_chat.get_online_users": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.get_online_users",
+    
+    # Search and Analytics APIs
+    "f_chat.search_messages": "f_chat.APIs.notification_chatroom.chat_apis.search_analytics.search_messages",
+    "f_chat.get_chat_analytics": "f_chat.APIs.notification_chatroom.chat_apis.search_analytics.get_chat_analytics",
+    "f_chat.get_global_chat_search": "f_chat.APIs.notification_chatroom.chat_apis.search_analytics.get_global_chat_search",
+    "f_chat.export_chat_messages": "f_chat.APIs.notification_chatroom.chat_apis.search_analytics.export_chat_messages",
+    
+    # Maintenance APIs (from f_chat/maintenance.py)
+    "f_chat.manual_cleanup_room": "f_chat.f_chat.maintenance.manual_cleanup_room",
+    "f_chat.get_room_storage_usage": "f_chat.f_chat.maintenance.get_room_storage_usage",
+    "f_chat.get_chat_system_stats": "f_chat.f_chat.maintenance.get_chat_system_stats",
+    "f_chat.optimize_chat_database": "f_chat.f_chat.maintenance.optimize_chat_database",
+    
+    # Chat Utility APIs (from f_chat DocType controllers)
+    "f_chat.get_user_chat_status": "f_chat.f_chat.doctype.chat_message.chat_message.get_user_chat_status",
+    "f_chat.mark_room_as_read": "f_chat.f_chat.doctype.chat_message.chat_message.mark_room_as_read",
+    "f_chat.get_recent_chat_activity": "f_chat.f_chat.doctype.chat_message.chat_message.get_recent_chat_activity",
+    "f_chat.search_users_for_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.user_search.search_users_for_chat_room",
+    "f_chat.add_member_to_room": "f_chat.APIs.notification_chatroom.chat_apis.user_search.add_member_to_room", 
+    "f_chat.add_multiple_members_to_room": "f_chat.APIs.notification_chatroom.chat_apis.user_search.add_multiple_members_to_room",
+    "f_chat.check_room_permissions": "f_chat.APIs.notification_chatroom.chat_apis.room_management.check_room_permissions",
+    "f_chat.get_user_room_role": "f_chat.APIs.notification_chatroom.chat_apis.room_management.get_user_room_role",
+
+
+}
 # Request Events
 # ----------------
 # before_request = ["f_chat.utils.before_request"]

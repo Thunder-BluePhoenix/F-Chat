@@ -4,3 +4,4 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+f_chat.patches.chat_application_setup # 09.09.25 -6
