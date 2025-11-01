@@ -32,12 +32,13 @@ app_include_css = [
 app_include_js = [
     # "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js",
     # "assets/f_chat/js/chat_integratioonn.js",
-    # "assets/f_chat/js/chat_realtimee.js" 
+    # "assets/f_chat/js/chat_realtimee.js"
     "assets/f_chat/js/nav_chatf10.js",
+    "assets/f_chat/js/chat_features_extended.js",  # Extended features: email, voice, broadcast, calls
 
     # "assets/f_chat/js/nav_chat27.js",
 
-    # "assets/f_chat/js/nav_chat_enhanced3.js"  
+    # "assets/f_chat/js/nav_chat_enhanced3.js"
 ]
 
 # include js, css files in header of desk.html

@@ -181,6 +181,15 @@ function add_enhanced_chat_icon_to_navbar() {
                                 </div>
                             </div>
                             <div class="room-actions">
+                                <button onclick="initiate_call('Audio')" class="header-action-btn" title="Audio Call">
+                                    📞
+                                </button>
+                                <button onclick="initiate_call('Video')" class="header-action-btn" title="Video Call">
+                                    📹
+                                </button>
+                                <button onclick="show_broadcast_modal()" class="header-action-btn" title="Broadcast Message">
+                                    📢
+                                </button>
                                 <span class="online-indicator">🟢</span>
                             </div>
                         </div>
@@ -207,7 +216,13 @@ function add_enhanced_chat_icon_to_navbar() {
                             
                             <!-- Input Row -->
                             <div class="input-row-enhanced">
-                                <input type="text" id="enhanced-message-input" class="message-input-enhanced" 
+                                <button class="attach-btn-enhanced" onclick="start_voice_recording()" id="voice-record-btn" title="Voice Message">
+                                    <i class="fa fa-microphone"></i>
+                                </button>
+                                <button class="attach-btn-enhanced" id="attach-file-btn" title="Attach File">
+                                    <i class="fa fa-paperclip"></i>
+                                </button>
+                                <input type="text" id="enhanced-message-input" class="message-input-enhanced"
                                        placeholder="Type your message..." onkeydown="handle_enhanced_input_keydown(event)">
                                 <button class="send-btn-enhanced" onclick="send_enhanced_message()" id="enhanced-send-btn">
                                     <i class="fa fa-paper-plane"></i>
@@ -636,7 +651,47 @@ function add_enhanced_chat_styles() {
             cursor: not-allowed !important;
             transform: none !important;
         }
-        
+
+        /* Attach Buttons */
+        .attach-btn-enhanced {
+            background: #f8f9fa !important;
+            color: #6c757d !important;
+            border: none !important;
+            border-radius: 50% !important;
+            width: 36px !important;
+            height: 36px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            font-size: 16px !important;
+        }
+
+        .attach-btn-enhanced:hover {
+            background: #e9ecef !important;
+            color: #495057 !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Header Action Buttons */
+        .header-action-btn {
+            background: none !important;
+            border: none !important;
+            font-size: 20px !important;
+            cursor: pointer !important;
+            padding: 6px !important;
+            border-radius: 6px !important;
+            transition: all 0.2s !important;
+            opacity: 0.8 !important;
+        }
+
+        .header-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            opacity: 1 !important;
+            transform: scale(1.1) !important;
+        }
+
         /* Modal Styles */
         .chat-modal-overlay-enhanced {
             position: fixed;
@@ -3971,6 +4026,11 @@ function load_enhanced_room_messages(roomId) {
         `;
     }
 
+    // Check for active calls
+    if (typeof check_and_show_active_call === 'function') {
+        check_and_show_active_call(roomId);
+    }
+
     frappe.call({
         method: "f_chat.get_chat_messages",
         args: { room_id: roomId, page: 1, page_size: 50 },
@@ -4068,16 +4128,19 @@ function display_enhanced_messages(messages) {
                 
                 ${!message.is_deleted ? `
                     <div class="message-actions-enhanced">
-                        <button class="message-action-btn-enhanced" 
-                            onclick="event.stopPropagation(); reply_to_message_enhanced('${message.name}', '${escapedContent.substring(0, 50)}', '${escapedSender}')" 
+                        <button class="message-action-btn-enhanced"
+                            onclick="event.stopPropagation(); reply_to_message_enhanced('${message.name}', '${escapedContent.substring(0, 50)}', '${escapedSender}')"
                             title="Reply">↩</button>
                         ${canEdit ? `
-                            <button class="message-action-btn-enhanced" 
-                                onclick="event.stopPropagation(); edit_message_enhanced('${message.name}', '${escapedContent}')" 
+                            <button class="message-action-btn-enhanced"
+                                onclick="event.stopPropagation(); edit_message_enhanced('${message.name}', '${escapedContent}')"
                                 title="Edit">✏</button>` : ''}
+                        <button class="message-action-btn-enhanced"
+                            onclick="event.stopPropagation(); send_message_via_email('${message.name}', '${escapedContent}', '${escapedSender}')"
+                            title="Send via Email">📧</button>
                         ${canDelete ? `
-                            <button class="message-action-btn-enhanced" 
-                                onclick="event.stopPropagation(); delete_message_enhanced('${message.name}')" 
+                            <button class="message-action-btn-enhanced"
+                                onclick="event.stopPropagation(); delete_message_enhanced('${message.name}')"
                                 title="Delete" style="color: #dc3545 !important;">🗑</button>` : ''}
                     </div>
                 ` : ''}
