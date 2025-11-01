@@ -296,60 +296,204 @@ function send_voice_message(audioBlob) {
         indicator: 'blue'
     }, 3);
 
-    // Upload audio file
+    // Create FormData for file upload
     const formData = new FormData();
     const filename = `voice_${Date.now()}.webm`;
     formData.append('file', audioBlob, filename);
+    formData.append('room_id', currentOpenRoom);
 
-    frappe.call({
-        method: 'f_chat.upload_chat_file',
-        args: {
-            room_id: currentOpenRoom
-        },
-        type: 'POST',
-        files: { file: audioBlob },
-        callback: function(response) {
-            if (response.message && response.message.success) {
-                const fileInfo = response.message.data.files[0];
+    // Upload using XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/method/f_chat.upload_chat_file?room_id=' + currentOpenRoom);
+    xhr.setRequestHeader('X-Frappe-CSRF-Token', frappe.csrf_token);
 
-                // Send message with voice attachment
-                frappe.call({
-                    method: 'f_chat.send_message',
-                    args: {
-                        room_id: currentOpenRoom,
-                        message_content: '🎤 Voice message',
-                        message_type: 'Voice',
-                        attachments: JSON.stringify([fileInfo])
-                    },
-                    callback: function(msgResponse) {
-                        if (msgResponse.message && msgResponse.message.success) {
-                            frappe.show_alert({
-                                message: '✅ Voice message sent',
-                                indicator: 'green'
-                            }, 2);
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.message && response.message.success) {
+                    const fileInfo = response.message.data.files[0];
 
-                            setTimeout(() => {
-                                if (typeof load_enhanced_room_messages === 'function') {
-                                    load_enhanced_room_messages(currentOpenRoom);
-                                }
-                            }, 500);
+                    // Send message with voice attachment
+                    frappe.call({
+                        method: 'f_chat.send_message',
+                        args: {
+                            room_id: currentOpenRoom,
+                            message_content: '🎤 Voice message',
+                            message_type: 'Voice',
+                            attachments: JSON.stringify([fileInfo])
+                        },
+                        callback: function(msgResponse) {
+                            if (msgResponse.message && msgResponse.message.success) {
+                                frappe.show_alert({
+                                    message: '✅ Voice message sent',
+                                    indicator: 'green'
+                                }, 2);
+
+                                setTimeout(() => {
+                                    if (typeof load_enhanced_room_messages === 'function') {
+                                        load_enhanced_room_messages(currentOpenRoom);
+                                    }
+                                }, 500);
+                            }
                         }
-                    }
-                });
-            } else {
+                    });
+                } else {
+                    frappe.show_alert({
+                        message: '❌ Failed to upload voice message',
+                        indicator: 'red'
+                    }, 3);
+                }
+            } catch (e) {
+                console.error('Error parsing upload response:', e);
                 frappe.show_alert({
-                    message: '❌ Failed to upload voice message',
+                    message: '❌ Error uploading voice message',
                     indicator: 'red'
                 }, 3);
             }
-        },
-        error: function() {
+        } else {
             frappe.show_alert({
-                message: '❌ Error uploading voice message',
+                message: '❌ Upload failed',
                 indicator: 'red'
             }, 3);
         }
-    });
+    };
+
+    xhr.onerror = function() {
+        frappe.show_alert({
+            message: '❌ Error uploading voice message',
+            indicator: 'red'
+        }, 3);
+    };
+
+    xhr.send(formData);
+}
+
+// ============================================================================
+// FILE SHARING
+// ============================================================================
+
+function open_file_picker() {
+    if (!currentOpenRoom) {
+        frappe.msgprint('Please open a room first');
+        return;
+    }
+
+    // Create file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.multiple = true;
+    fileInput.accept = 'image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx,audio/*,video/*';
+
+    fileInput.onchange = function(e) {
+        const files = e.target.files;
+        if (files.length === 0) return;
+
+        upload_files_to_chat(files);
+    };
+
+    fileInput.click();
+}
+
+function upload_files_to_chat(files) {
+    if (!currentOpenRoom) return;
+
+    frappe.show_alert({
+        message: `⬆️ Uploading ${files.length} file(s)...`,
+        indicator: 'blue'
+    }, 3);
+
+    // Create FormData
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append('file', files[i]);
+    }
+
+    // Upload using XMLHttpRequest
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/method/f_chat.upload_chat_file?room_id=' + currentOpenRoom);
+    xhr.setRequestHeader('X-Frappe-CSRF-Token', frappe.csrf_token);
+
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.message && response.message.success) {
+                    const uploadedFiles = response.message.data.files;
+
+                    // Determine message type based on first file
+                    let messageType = 'File';
+                    if (uploadedFiles.length > 0) {
+                        if (uploadedFiles[0].file_type && uploadedFiles[0].file_type.startsWith('image/')) {
+                            messageType = 'Image';
+                        } else if (uploadedFiles[0].is_audio) {
+                            messageType = 'Voice';
+                        }
+                    }
+
+                    // Create message content
+                    let messageContent = '';
+                    if (messageType === 'Image') {
+                        messageContent = `📷 ${uploadedFiles.length} image(s)`;
+                    } else if (messageType === 'Voice') {
+                        messageContent = `🎤 Audio file`;
+                    } else {
+                        messageContent = `📎 ${uploadedFiles.length} file(s)`;
+                    }
+
+                    // Send message with attachments
+                    frappe.call({
+                        method: 'f_chat.send_message',
+                        args: {
+                            room_id: currentOpenRoom,
+                            message_content: messageContent,
+                            message_type: messageType,
+                            attachments: JSON.stringify(uploadedFiles)
+                        },
+                        callback: function(msgResponse) {
+                            if (msgResponse.message && msgResponse.message.success) {
+                                frappe.show_alert({
+                                    message: '✅ File(s) sent successfully',
+                                    indicator: 'green'
+                                }, 2);
+
+                                setTimeout(() => {
+                                    if (typeof load_enhanced_room_messages === 'function') {
+                                        load_enhanced_room_messages(currentOpenRoom);
+                                    }
+                                }, 500);
+                            }
+                        }
+                    });
+                } else {
+                    frappe.show_alert({
+                        message: '❌ Failed to upload files',
+                        indicator: 'red'
+                    }, 3);
+                }
+            } catch (e) {
+                console.error('Error parsing upload response:', e);
+                frappe.show_alert({
+                    message: '❌ Error uploading files',
+                    indicator: 'red'
+                }, 3);
+            }
+        } else {
+            frappe.show_alert({
+                message: '❌ Upload failed',
+                indicator: 'red'
+            }, 3);
+        }
+    };
+
+    xhr.onerror = function() {
+        frappe.show_alert({
+            message: '❌ Error uploading files',
+            indicator: 'red'
+        }, 3);
+    };
+
+    xhr.send(formData);
 }
 
 // ============================================================================

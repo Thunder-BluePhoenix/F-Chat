@@ -219,7 +219,7 @@ function add_enhanced_chat_icon_to_navbar() {
                                 <button class="attach-btn-enhanced" onclick="start_voice_recording()" id="voice-record-btn" title="Voice Message">
                                     <i class="fa fa-microphone"></i>
                                 </button>
-                                <button class="attach-btn-enhanced" id="attach-file-btn" title="Attach File">
+                                <button class="attach-btn-enhanced" onclick="open_file_picker()" id="attach-file-btn" title="Attach File">
                                     <i class="fa fa-paperclip"></i>
                                 </button>
                                 <input type="text" id="enhanced-message-input" class="message-input-enhanced"
