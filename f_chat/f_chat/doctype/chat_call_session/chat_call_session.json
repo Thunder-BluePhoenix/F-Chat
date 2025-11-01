@@ -1,0 +1,171 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:CALL-{####}",
+ "creation": "2025-01-15 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_info_section",
+  "chat_room",
+  "call_type",
+  "call_status",
+  "column_break_1",
+  "initiated_by",
+  "start_time",
+  "end_time",
+  "participants_section",
+  "participants",
+  "webrtc_section",
+  "session_id",
+  "ice_servers_config",
+  "metadata_section",
+  "total_duration",
+  "column_break_2",
+  "recording_url",
+  "is_recorded"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_info_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "chat_room",
+   "fieldtype": "Link",
+   "label": "Chat Room",
+   "options": "Chat Room",
+   "reqd": 1
+  },
+  {
+   "fieldname": "call_type",
+   "fieldtype": "Select",
+   "label": "Call Type",
+   "options": "Audio\nVideo",
+   "default": "Audio",
+   "reqd": 1
+  },
+  {
+   "fieldname": "call_status",
+   "fieldtype": "Select",
+   "label": "Call Status",
+   "options": "Initiated\nRinging\nConnected\nEnded\nFailed\nRejected\nMissed",
+   "default": "Initiated",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "initiated_by",
+   "fieldtype": "Link",
+   "label": "Initiated By",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Datetime",
+   "label": "Start Time",
+   "default": "now"
+  },
+  {
+   "fieldname": "end_time",
+   "fieldtype": "Datetime",
+   "label": "End Time"
+  },
+  {
+   "fieldname": "participants_section",
+   "fieldtype": "Section Break",
+   "label": "Participants"
+  },
+  {
+   "fieldname": "participants",
+   "fieldtype": "Table",
+   "label": "Call Participants",
+   "options": "Chat Call Participant"
+  },
+  {
+   "fieldname": "webrtc_section",
+   "fieldtype": "Section Break",
+   "label": "WebRTC Configuration"
+  },
+  {
+   "fieldname": "session_id",
+   "fieldtype": "Data",
+   "label": "Session ID",
+   "unique": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "ice_servers_config",
+   "fieldtype": "Long Text",
+   "label": "ICE Servers Configuration",
+   "description": "JSON configuration for ICE servers"
+  },
+  {
+   "fieldname": "metadata_section",
+   "fieldtype": "Section Break",
+   "label": "Metadata"
+  },
+  {
+   "fieldname": "total_duration",
+   "fieldtype": "Int",
+   "label": "Total Duration (seconds)",
+   "default": 0
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "recording_url",
+   "fieldtype": "Data",
+   "label": "Recording URL"
+  },
+  {
+   "fieldname": "is_recorded",
+   "fieldtype": "Check",
+   "label": "Is Recorded",
+   "default": 0
+  }
+ ],
+ "links": [],
+ "modified": "2025-01-15 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "F Chat",
+ "name": "Chat Call Session",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

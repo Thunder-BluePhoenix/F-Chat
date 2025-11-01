@@ -54,6 +54,9 @@ def upload_chat_file(room_id):
             
             # Determine file type
             file_type = mimetypes.guess_type(file_obj.filename)[0] or "application/octet-stream"
+
+            # Check if this is an audio/voice file
+            is_audio = file_type and file_type.startswith("audio/")
             
             # Create unique filename to prevent conflicts
             timestamp = now_datetime().strftime("%Y%m%d_%H%M%S")
@@ -77,7 +80,8 @@ def upload_chat_file(room_id):
                 "file_type": file_type,
                 "file_size": file_size,
                 "unique_filename": unique_filename,
-                "file_doc_name": file_doc.name
+                "file_doc_name": file_doc.name,
+                "is_audio": is_audio
             })
             
         return {

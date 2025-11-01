@@ -45,8 +45,8 @@ app_include_js = [
 # app_include_js = "/assets/f_chat/js/f_chat.js"
 website_context = {
     "chat_enabled": True,
-    "max_file_size": 26214400,  # 10MB
-    "supported_file_types": ["image/*", "application/pdf", "text/*", ".doc", ".docx", ".xls", ".xlsx"]
+    "max_file_size": 26214400,  # 25MB
+    "supported_file_types": ["image/*", "application/pdf", "text/*", ".doc", ".docx", ".xls", ".xlsx", "audio/*", "video/*"]
 }
 # include js, css files in header of web template
 # web_include_css = "/assets/f_chat/css/f_chat.css"
@@ -55,7 +55,8 @@ websocket_events = {
     "chat_message": "f_chat.f_chat.doctype.chat_message.chat_message.handle_websocket_message",
     "chat_room_join": "f_chat.f_chat.doctype.chat_message.chat_message.handle_user_join_room",
     "chat_room_leave": "f_chat.f_chat.doctype.chat_message.chat_message.handle_user_leave_room",
-    "typing_indicator": "f_chat.f_chat.doctype.chat_message.chat_message.handle_typing_indicator"
+    "typing_indicator": "f_chat.f_chat.doctype.chat_message.chat_message.handle_typing_indicator",
+    "call_signal": "f_chat.APIs.notification_chatroom.chat_apis.call_management.send_webrtc_signal"
 }
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "f_chat/public/scss/website"
@@ -313,6 +314,24 @@ override_whitelisted_methods = {
     "f_chat.check_room_permissions": "f_chat.APIs.notification_chatroom.chat_apis.room_management.check_room_permissions",
     "f_chat.get_user_room_role": "f_chat.APIs.notification_chatroom.chat_apis.room_management.get_user_room_role",
 
+    # Email Integration APIs
+    "f_chat.send_message_via_email": "f_chat.APIs.notification_chatroom.chat_apis.email_integration.send_message_via_email",
+    "f_chat.send_file_via_email": "f_chat.APIs.notification_chatroom.chat_apis.email_integration.send_file_via_email",
+    "f_chat.get_available_email_recipients": "f_chat.APIs.notification_chatroom.chat_apis.email_integration.get_available_email_recipients",
+
+    # Broadcast APIs
+    "f_chat.send_broadcast_message": "f_chat.APIs.notification_chatroom.chat_apis.broadcast.send_broadcast_message",
+    "f_chat.get_broadcast_rooms": "f_chat.APIs.notification_chatroom.chat_apis.broadcast.get_broadcast_rooms",
+    "f_chat.get_broadcast_history": "f_chat.APIs.notification_chatroom.chat_apis.broadcast.get_broadcast_history",
+
+    # Call Management APIs
+    "f_chat.initiate_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.initiate_call",
+    "f_chat.join_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.join_call",
+    "f_chat.leave_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.leave_call",
+    "f_chat.reject_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.reject_call",
+    "f_chat.send_webrtc_signal": "f_chat.APIs.notification_chatroom.chat_apis.call_management.send_webrtc_signal",
+    "f_chat.get_active_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.get_active_call",
+    "f_chat.get_call_history": "f_chat.APIs.notification_chatroom.chat_apis.call_management.get_call_history",
 
 }
 # Request Events

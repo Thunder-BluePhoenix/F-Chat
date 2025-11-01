@@ -53,7 +53,7 @@
    "fieldname": "message_type",
    "fieldtype": "Select",
    "label": "Message Type",
-   "options": "Text\nFile\nImage\nSystem\nAnnouncement",
+   "options": "Text\nFile\nImage\nVoice\nSystem\nAnnouncement\nBroadcast",
    "default": "Text",
    "reqd": 1
   },
