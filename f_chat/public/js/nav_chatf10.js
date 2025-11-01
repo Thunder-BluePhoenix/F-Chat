@@ -4120,7 +4120,49 @@ function display_enhanced_messages(messages) {
 
                 
                 <div class="message-content-enhanced">${message.is_deleted ? '<em>This message was deleted</em>' : (message.message_content || '')}</div>
-                
+
+                ${message.attachments && message.attachments.length > 0 ? `
+                    <div class="message-attachments-enhanced">
+                        ${message.attachments.map(att => {
+                            const isImage = att.file_type && att.file_type.startsWith('image/');
+                            const isAudio = att.file_type && att.file_type.startsWith('audio/');
+                            const fileSize = att.file_size ? formatFileSize(att.file_size) : '';
+
+                            if (isImage) {
+                                return `
+                                    <div class="attachment-image">
+                                        <img src="${att.file_url}" alt="${att.file_name}" onclick="window.open('${att.file_url}', '_blank')" style="max-width: 100%; border-radius: 8px; cursor: pointer; margin-top: 8px;">
+                                    </div>
+                                `;
+                            } else if (isAudio) {
+                                return `
+                                    <div class="attachment-audio">
+                                        <audio controls style="width: 100%; margin-top: 8px;">
+                                            <source src="${att.file_url}" type="${att.file_type}">
+                                            Your browser does not support audio playback.
+                                        </audio>
+                                        <div style="font-size: 11px; color: #999; margin-top: 4px;">${att.file_name} (${fileSize})</div>
+                                    </div>
+                                `;
+                            } else {
+                                const fileIcon = getFileIcon(att.file_type);
+                                return `
+                                    <div class="attachment-file">
+                                        <a href="${att.file_url}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; text-decoration: none; color: inherit; margin-top: 8px;">
+                                            <span style="font-size: 24px;">${fileIcon}</span>
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${att.file_name}</div>
+                                                <div style="font-size: 11px; color: #999;">${fileSize}</div>
+                                            </div>
+                                            <span style="font-size: 18px;">⬇</span>
+                                        </a>
+                                    </div>
+                                `;
+                            }
+                        }).join('')}
+                    </div>
+                ` : ''}
+
                 <div class="message-time-enhanced">
                     <span>${time}</span>
                     ${message.is_edited ? '<span style="font-style: italic; margin-left: 8px;">edited</span>' : ''}
@@ -4323,6 +4365,30 @@ function handle_enhanced_input_keydown(event) {
             cancel_reply();
         }
     }
+}
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Helper function to get file icon based on type
+function getFileIcon(fileType) {
+    if (!fileType) return '📄';
+
+    if (fileType.includes('pdf')) return '📕';
+    if (fileType.includes('word') || fileType.includes('document')) return '📘';
+    if (fileType.includes('sheet') || fileType.includes('excel')) return '📗';
+    if (fileType.includes('presentation') || fileType.includes('powerpoint')) return '📙';
+    if (fileType.includes('text')) return '📝';
+    if (fileType.includes('video')) return '🎬';
+    if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('compressed')) return '📦';
+
+    return '📄';
 }
 
 function mark_enhanced_room_as_read(roomId) {
