@@ -65,15 +65,30 @@ def upload_chat_file(room_id):
 
             # Ensure Chat_Files folder exists
             folder_name = "Home/Chat_Files"
-            if not frappe.db.exists("File", {"file_name": folder_name, "is_folder": 1}):
-                # Create the folder
-                folder = frappe.get_doc({
-                    "doctype": "File",
-                    "file_name": "Chat_Files",
-                    "is_folder": 1,
-                    "folder": "Home"
-                })
-                folder.insert(ignore_permissions=True)
+            try:
+                # Check multiple ways the folder might exist
+                folder_exists = (
+                    frappe.db.exists("File", {"name": folder_name, "is_folder": 1}) or
+                    frappe.db.exists("File", {"file_name": "Chat_Files", "folder": "Home", "is_folder": 1}) or
+                    frappe.db.exists("File", {"file_name": folder_name, "is_folder": 1})
+                )
+
+                if not folder_exists:
+                    # Create the folder
+                    folder = frappe.get_doc({
+                        "doctype": "File",
+                        "file_name": "Chat_Files",
+                        "is_folder": 1,
+                        "folder": "Home"
+                    })
+                    folder.insert(ignore_permissions=True)
+            except frappe.DuplicateEntryError:
+                # Folder already exists, that's fine
+                pass
+            except Exception as folder_error:
+                # Log but don't fail - folder might already exist
+                frappe.logger().warning(f"Could not create Chat_Files folder: {str(folder_error)}")
+
 
             # Create File document
             file_doc = frappe.get_doc({
