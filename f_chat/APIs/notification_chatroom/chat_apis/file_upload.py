@@ -91,10 +91,12 @@ def upload_chat_file(room_id):
 
 
             # Create File document
+            # Note: We don't set attached_to_doctype/attached_to_name here
+            # because the Chat Message doesn't exist yet. The file will be
+            # linked via the Chat Message Attachment child table instead.
             file_doc = frappe.get_doc({
                 "doctype": "File",
                 "file_name": unique_filename,
-                "attached_to_doctype": "Chat Message",
                 "folder": folder_name,
                 "is_private": 1 if room.is_private else 0,
                 "content": content
