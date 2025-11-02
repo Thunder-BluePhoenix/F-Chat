@@ -26,15 +26,15 @@ app_license = "gpl-3.0"
 app_include_css = [
     # "assets/f_chat/css/chat_styles.css",
     # "assets/f_chat/css/chat_enhanced.css"
-    "assets/f_chat/css/nav_chat_style2.css"
+    "assets/f_chat/css/nav_chat_style3.css"
 ]
 # app_include_js = "/assets/f_chat/js/f_chat.js"
 app_include_js = [
     # "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js",
     # "assets/f_chat/js/chat_integratioonn.js",
     # "assets/f_chat/js/chat_realtimee.js"
-    "assets/f_chat/js/nav_chatf104.js",
-    "assets/f_chat/js/chat_features_extended4.js",  # Extended features: email, voice, broadcast, calls
+    "assets/f_chat/js/nav_chatf109.js",
+    "assets/f_chat/js/chat_features_extended10.js",  # Extended features: email, voice, broadcast, calls
 
     # "assets/f_chat/js/nav_chat27.js",
 

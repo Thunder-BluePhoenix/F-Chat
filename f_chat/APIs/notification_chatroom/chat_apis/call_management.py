@@ -88,6 +88,10 @@ def initiate_call(room_id, call_type="Audio", participants=None):
 
         call_session.insert(ignore_permissions=True)
 
+        # Update status to Ringing after insertion
+        call_session.call_status = "Ringing"
+        call_session.save(ignore_permissions=True)
+
         # Create system message in chat
         system_message = frappe.new_doc("Chat Message")
         system_message.chat_room = room_id

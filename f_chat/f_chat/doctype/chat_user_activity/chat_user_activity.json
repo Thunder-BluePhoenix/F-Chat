@@ -1,0 +1,136 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:user",
+ "creation": "2025-11-02 15:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "column_break_2",
+  "full_name",
+  "section_break_3",
+  "chat_status",
+  "last_seen",
+  "column_break_6",
+  "last_activity",
+  "is_online",
+  "section_break_8",
+  "unread_count",
+  "active_room",
+  "typing_in_room"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "chat_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Chat Status",
+   "options": "online\naway\nbusy\noffline",
+   "default": "offline"
+  },
+  {
+   "fieldname": "last_seen",
+   "fieldtype": "Datetime",
+   "label": "Last Seen"
+  },
+  {
+   "fieldname": "last_activity",
+   "fieldtype": "Datetime",
+   "label": "Last Activity"
+  },
+  {
+   "fieldname": "is_online",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Online",
+   "default": 0
+  },
+  {
+   "fieldname": "unread_count",
+   "fieldtype": "Int",
+   "label": "Total Unread Messages",
+   "default": 0,
+   "non_negative": 1
+  },
+  {
+   "fieldname": "active_room",
+   "fieldtype": "Link",
+   "label": "Currently Active Room",
+   "options": "Chat Room"
+  },
+  {
+   "fieldname": "typing_in_room",
+   "fieldtype": "Link",
+   "label": "Typing In Room",
+   "options": "Chat Room"
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Full Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_8",
+   "fieldtype": "Section Break",
+   "label": "Activity Info"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-11-02 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "F Chat",
+ "name": "Chat User Activity",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "read": 1,
+   "role": "Employee",
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

@@ -65,21 +65,38 @@ def upload_chat_file(room_id):
 
             # Ensure Chat_Files folder exists
             folder_name = "Home/Chat_Files"
-            if not frappe.db.exists("File", {"file_name": folder_name, "is_folder": 1}):
-                # Create the folder
-                folder = frappe.get_doc({
-                    "doctype": "File",
-                    "file_name": "Chat_Files",
-                    "is_folder": 1,
-                    "folder": "Home"
-                })
-                folder.insert(ignore_permissions=True)
+            try:
+                # Check multiple ways the folder might exist
+                folder_exists = (
+                    frappe.db.exists("File", {"name": folder_name, "is_folder": 1}) or
+                    frappe.db.exists("File", {"file_name": "Chat_Files", "folder": "Home", "is_folder": 1}) or
+                    frappe.db.exists("File", {"file_name": folder_name, "is_folder": 1})
+                )
+
+                if not folder_exists:
+                    # Create the folder
+                    folder = frappe.get_doc({
+                        "doctype": "File",
+                        "file_name": "Chat_Files",
+                        "is_folder": 1,
+                        "folder": "Home"
+                    })
+                    folder.insert(ignore_permissions=True)
+            except frappe.DuplicateEntryError:
+                # Folder already exists, that's fine
+                pass
+            except Exception as folder_error:
+                # Log but don't fail - folder might already exist
+                frappe.logger().warning(f"Could not create Chat_Files folder: {str(folder_error)}")
+
 
             # Create File document
+            # Note: We don't set attached_to_doctype/attached_to_name here
+            # because the Chat Message doesn't exist yet. The file will be
+            # linked via the Chat Message Attachment child table instead.
             file_doc = frappe.get_doc({
                 "doctype": "File",
                 "file_name": unique_filename,
-                "attached_to_doctype": "Chat Message",
                 "folder": folder_name,
                 "is_private": 1 if room.is_private else 0,
                 "content": content

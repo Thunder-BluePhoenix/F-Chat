@@ -420,26 +420,10 @@ def setup_chat_workspace():
         
         for shortcut in shortcuts:
             workspace.append("shortcuts", shortcut)
-        
-        # Add cards for quick access
-        cards = [
-            {
-                "card_name": "Active Rooms",
-                "card_type": "Number Card"
-            },
-            {
-                "card_name": "Messages Today",
-                "card_type": "Number Card"
-            },
-            {
-                "card_name": "online Users",
-                "card_type": "Number Card"
-            }
-        ]
-        
-        for card in cards:
-            workspace.append("cards", card)
-        
+
+        # Note: Cards are not supported in all Frappe versions
+        # Skip card setup to avoid errors
+
         workspace.insert(ignore_permissions=True)
         print("Created Chat workspace")
         
@@ -493,11 +477,12 @@ def setup_chat_notifications():
             notification.event = "New"
             notification.enabled = 1
             notification.channel = "Email"
-            notification.recipients = [
-                {
-                    "receiver_by_document_field": "chat_room.members.user"
-                }
-            ]
+
+            # Add recipients using append() method to create proper child documents
+            notification.append("recipients", {
+                "receiver_by_document_field": "chat_room.members.user"
+            })
+
             notification.message = """
                 <p>Hello,</p>
                 <p>You have a new message in the chat room <strong>{{ doc.chat_room }}</strong></p>
@@ -507,7 +492,7 @@ def setup_chat_notifications():
             """
             notification.insert(ignore_permissions=True)
             print("Created New Chat Message notification")
-        
+
     except Exception as e:
         frappe.log_error(f"Error setting up chat notifications: {str(e)}")
 

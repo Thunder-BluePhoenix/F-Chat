@@ -152,6 +152,15 @@ function send_file_via_email(roomId, fileUrl, fileName) {
 
 async function start_voice_recording() {
     try {
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            frappe.show_alert({
+                message: '❌ Your browser does not support voice recording. Please use a modern browser with HTTPS.',
+                indicator: 'red'
+            }, 5);
+            return;
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
         mediaRecorder = new MediaRecorder(stream);
@@ -672,6 +681,10 @@ function initiate_call(callType) {
                 indicator: 'blue'
             }, 2);
 
+            // Show call UI immediately
+            show_call_ui(callType);
+            update_call_status_indicator('Initiating...', 'blue');
+
             frappe.call({
                 method: 'f_chat.initiate_call',
                 args: {
@@ -681,16 +694,12 @@ function initiate_call(callType) {
                 callback: function(response) {
                     if (response.message && response.message.success) {
                         currentCall = response.message.data;
-                        frappe.show_alert({
-                            message: '✅ Call initiated successfully',
-                            indicator: 'green'
-                        }, 3);
+
+                        // Update status to Ringing
+                        update_call_status_indicator('Ringing...', 'blue');
 
                         // Setup WebRTC
                         setup_webrtc_connection(currentCall);
-
-                        // Show call UI
-                        show_call_ui(callType);
 
                         // Check for active call
                         check_and_show_active_call(currentOpenRoom);
@@ -799,11 +808,14 @@ function show_call_ui(callType) {
                     <div class="video-container">
                         <video id="remote-video" autoplay playsinline></video>
                         <video id="local-video" autoplay playsinline muted></video>
+                        <div class="video-status-overlay" id="video-status-overlay">
+                            <div class="status-message">Initiating...</div>
+                        </div>
                     </div>
                 ` : `
                     <div class="audio-call-display">
                         <div class="audio-call-icon">📞</div>
-                        <div class="audio-call-status">Connected</div>
+                        <div class="audio-call-status" id="audio-call-status">Initiating...</div>
                     </div>
                 `}
                 <div class="call-controls">
@@ -869,18 +881,120 @@ function toggle_video() {
 }
 
 // ============================================================================
+// CALL STATUS INDICATORS
+// ============================================================================
+
+function update_call_status_indicator(status, color) {
+    // Update audio call status
+    const audioStatus = document.querySelector('#audio-call-status');
+    if (audioStatus) {
+        audioStatus.textContent = status;
+        audioStatus.style.color = color === 'green' ? '#28a745' : color === 'blue' ? '#007bff' : color === 'orange' ? '#fd7e14' : '#dc3545';
+    }
+
+    // Update video status overlay (if exists)
+    const videoStatus = document.querySelector('#video-status-overlay .status-message');
+    if (videoStatus) {
+        videoStatus.textContent = status;
+        videoStatus.style.color = color === 'green' ? '#28a745' : color === 'blue' ? '#007bff' : color === 'orange' ? '#fd7e14' : '#dc3545';
+
+        // Hide overlay if connected
+        const overlay = document.querySelector('#video-status-overlay');
+        if (overlay && status.toLowerCase().includes('connected')) {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.style.display = 'none', 300);
+        } else if (overlay) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+        }
+    }
+
+    // Show toast notification for important status changes
+    if (status.toLowerCase().includes('connected')) {
+        frappe.show_alert({
+            message: `✅ ${status}`,
+            indicator: 'green'
+        }, 2);
+    } else if (status.toLowerCase().includes('ringing')) {
+        frappe.show_alert({
+            message: `📞 ${status}`,
+            indicator: 'blue'
+        }, 2);
+    }
+}
+
+// ============================================================================
 // WEBRTC IMPLEMENTATION
 // ============================================================================
 
 async function setup_webrtc_connection(callData) {
     try {
-        // Get user media
+        // Update call status indicator
+        update_call_status_indicator('Connecting...', 'blue');
+
+        // Check if getUserMedia is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            // Fallback for older browsers or HTTP contexts
+            if (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia) {
+                frappe.show_alert({
+                    message: 'Please use a modern browser for better call quality',
+                    indicator: 'orange'
+                }, 3);
+            } else {
+                throw new Error('Your browser does not support audio/video calls. Please update your browser.');
+            }
+        }
+
+        // Request user media with permission prompt
         const constraints = {
             audio: true,
             video: callData.call_type === 'Video'
         };
 
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        update_call_status_indicator('Requesting permissions...', 'blue');
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            update_call_status_indicator('Connected', 'green');
+        } catch (permissionError) {
+            // Handle permission denied
+            if (permissionError.name === 'NotAllowedError' || permissionError.name === 'PermissionDeniedError') {
+                frappe.msgprint({
+                    title: 'Permission Required',
+                    indicator: 'red',
+                    message: `
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">🎤</div>
+                            <h4>Microphone ${callData.call_type === 'Video' ? '& Camera' : ''} Permission Required</h4>
+                            <p style="margin: 15px 0; color: #666;">
+                                Please allow access to your ${callData.call_type === 'Video' ? 'microphone and camera' : 'microphone'} to join the call.
+                            </p>
+                            <p style="font-size: 12px; color: #888;">
+                                Click the <strong>🔒 lock icon</strong> in your browser's address bar to manage permissions.
+                            </p>
+                        </div>
+                    `
+                });
+                throw new Error('Permission denied');
+            } else if (permissionError.name === 'NotFoundError') {
+                frappe.msgprint({
+                    title: 'Device Not Found',
+                    indicator: 'red',
+                    message: `
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">🎤❌</div>
+                            <h4>No ${callData.call_type === 'Video' ? 'Camera or ' : ''}Microphone Found</h4>
+                            <p style="margin: 15px 0; color: #666;">
+                                Please connect a ${callData.call_type === 'Video' ? 'camera and/or ' : ''}microphone to join the call.
+                            </p>
+                        </div>
+                    `
+                });
+                throw new Error('Device not found');
+            } else {
+                throw permissionError;
+            }
+        }
 
         // Display local video if video call
         if (callData.call_type === 'Video') {
@@ -1009,6 +1123,16 @@ function setup_webrtc_listeners(callSessionId) {
                 hide_active_call_indicator();
                 currentCall = null;
             }
+        }
+    });
+
+    // Listen for participant joined
+    frappe.realtime.on('call_participant_joined', (data) => {
+        if (data.call_session_id === callSessionId) {
+            frappe.show_alert({
+                message: `${data.user} joined the call`,
+                indicator: 'blue'
+            }, 2);
         }
     });
 }
@@ -1171,12 +1295,44 @@ function add_extended_features_styles() {
         .audio-call-icon {
             font-size: 80px;
             margin-bottom: 20px;
+            animation: pulse 2s infinite;
         }
 
         .audio-call-status {
-            font-size: 24px;
+            font-size: 20px;
+            color: #007bff;
             font-weight: 600;
-            color: #28a745;
+            text-align: center;
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: rgba(0, 123, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* Video Status Overlay */
+        .video-status-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-status-overlay .status-message {
+            font-size: 24px;
+            color: #007bff;
+            font-weight: 600;
+            text-align: center;
+            padding: 20px 30px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
         .call-controls {
@@ -1274,18 +1430,298 @@ function add_extended_features_styles() {
         .call-ui-overlay.minimized .call-ui-body {
             display: none;
         }
+
+        /* Incoming Call Dialog */
+        .incoming-call-dialog {
+            z-index: 99999 !important;
+        }
+
+        .incoming-call-dialog .modal-dialog {
+            animation: pulse-scale 1s infinite;
+            max-width: 90% !important;
+            margin: 10% auto !important;
+        }
+
+        @keyframes pulse-scale {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .incoming-call-dialog .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px;
+        }
+
+        .incoming-call-dialog .modal-title {
+            color: white !important;
+            font-size: 20px !important;
+        }
+
+        .incoming-call-dialog .modal-body {
+            padding: 0 !important;
+        }
+
+        .incoming-call-dialog .modal-footer {
+            border-top: none;
+            padding: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .incoming-call-dialog .btn {
+            min-width: 120px;
+            font-size: 16px !important;
+            padding: 12px 24px !important;
+            border-radius: 8px;
+            font-weight: 600 !important;
+            touch-action: manipulation;
+        }
+
+        .incoming-call-dialog .btn-primary {
+            background: #28a745 !important;
+            border-color: #28a745 !important;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .incoming-call-dialog .btn-primary:hover,
+        .incoming-call-dialog .btn-primary:active {
+            background: #218838 !important;
+            border-color: #1e7e34 !important;
+            transform: scale(1.05);
+        }
+
+        .incoming-call-dialog .btn-secondary {
+            background: #dc3545 !important;
+            border-color: #dc3545 !important;
+            box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+        }
+
+        .incoming-call-dialog .btn-secondary:hover,
+        .incoming-call-dialog .btn-secondary:active {
+            background: #c82333 !important;
+            border-color: #bd2130 !important;
+            transform: scale(1.05);
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+            .incoming-call-dialog .modal-dialog {
+                max-width: 95% !important;
+                margin: 5% auto !important;
+            }
+
+            .incoming-call-dialog .btn {
+                min-width: 100px;
+                font-size: 15px !important;
+                padding: 14px 20px !important;
+            }
+
+            .incoming-call-dialog .modal-footer {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .incoming-call-dialog .btn {
+                width: 100%;
+            }
+        }
     `;
 
     document.head.appendChild(style);
+}
+
+// ============================================================================
+// INCOMING CALL UI
+// ============================================================================
+
+function show_incoming_call_dialog(callData) {
+    const callType = callData.call_type || 'Audio';
+    const icon = callType === 'Video' ? '📹' : '📞';
+    const initiatorName = callData.initiated_by;
+
+    // Log for debugging
+    console.log('Showing incoming call dialog:', callData);
+
+    // Check if browser supports calls
+    const isSupported = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+
+    // Create incoming call dialog
+    const dialog = new frappe.ui.Dialog({
+        title: `${icon} Incoming ${callType} Call`,
+        indicator: 'blue',
+        size: 'small',
+        static: true,  // Prevent dismissal by clicking outside
+        fields: [
+            {
+                fieldtype: 'HTML',
+                fieldname: 'call_info',
+                options: `
+                    <div style="text-align: center; padding: 30px 20px;">
+                        <div style="font-size: 64px; margin-bottom: 15px; animation: pulse 1.5s infinite;">${icon}</div>
+                        <h3 style="margin: 15px 0; font-size: 22px;">${initiatorName}</h3>
+                        <p style="color: #888; font-size: 16px; margin: 10px 0;">is calling you...</p>
+                        <p style="margin-top: 15px; font-size: 14px; color: #666; font-weight: 500;">
+                            ${callType} Call
+                        </p>
+                        ${!isSupported ? `
+                            <div style="margin-top: 20px; padding: 12px; background: #fff3cd; border-radius: 8px; font-size: 13px; color: #856404;">
+                                ⚠️ Your browser may not support video/audio calls. Please use a modern browser.
+                            </div>
+                        ` : ''}
+                    </div>
+                `
+            }
+        ],
+        primary_action_label: '✅ Answer',
+        primary_action: function() {
+            // Answer the call
+            console.log('Answering call:', callData.call_session_id);
+            dialog.hide();
+            join_current_call(callData.call_session_id);
+        },
+        secondary_action_label: '❌ Reject',
+        secondary_action: function() {
+            // Reject the call
+            console.log('Rejecting call:', callData.call_session_id);
+            dialog.hide();
+            frappe.call({
+                method: 'f_chat.reject_call',
+                args: {
+                    call_session_id: callData.call_session_id
+                },
+                callback: function(response) {
+                    if (response.message && response.message.success) {
+                        frappe.show_alert({
+                            message: '📞 Call rejected',
+                            indicator: 'orange'
+                        }, 2);
+                    }
+                }
+            });
+        }
+    });
+
+    // Show dialog
+    dialog.show();
+
+    // Force visibility and proper styling
+    setTimeout(() => {
+        dialog.$wrapper.addClass('incoming-call-dialog');
+        dialog.$wrapper.css({
+            'z-index': '99999',
+            'display': 'block'
+        });
+        dialog.$wrapper.find('.modal-dialog').css({
+            'margin': '10% auto',
+            'max-width': '500px'
+        });
+
+        // Make buttons more visible on mobile
+        dialog.$wrapper.find('.btn-primary').css({
+            'font-size': '16px',
+            'padding': '12px 24px',
+            'min-width': '120px'
+        });
+        dialog.$wrapper.find('.btn-secondary').css({
+            'font-size': '16px',
+            'padding': '12px 24px',
+            'min-width': '120px'
+        });
+    }, 100);
+
+    // Store dialog reference to close it if call is ended/cancelled
+    if (!window.incomingCallDialogs) {
+        window.incomingCallDialogs = {};
+    }
+    window.incomingCallDialogs[callData.call_session_id] = dialog;
+
+    // Auto-dismiss after 30 seconds if no action taken
+    setTimeout(() => {
+        if (dialog && dialog.is_visible) {
+            dialog.hide();
+            frappe.show_alert({
+                message: '📞 Missed call from ' + initiatorName,
+                indicator: 'orange'
+            }, 5);
+        }
+    }, 30000);
+}
+
+// ============================================================================
+// GLOBAL REALTIME EVENT LISTENERS FOR CALLS
+// ============================================================================
+
+function setup_global_call_listeners() {
+    // Listen for incoming call notifications
+    frappe.realtime.on('call_initiated', (data) => {
+        // Don't show notification to the initiator
+        if (data.initiated_by === frappe.session.user) return;
+
+        // Show incoming call dialog with Answer/Reject buttons
+        show_incoming_call_dialog(data);
+
+        // Update active call indicator if user is in the room
+        if (currentOpenRoom === data.room_id) {
+            check_and_show_active_call(data.room_id);
+        }
+
+        // Play notification sound (optional)
+        try {
+            const audio = new Audio('/assets/frappe/sounds/notification.mp3');
+            audio.play().catch(e => console.log('Could not play notification sound:', e));
+        } catch (e) {
+            console.log('Notification sound not available');
+        }
+    });
+
+    // Listen for call rejection
+    frappe.realtime.on('call_rejected', (data) => {
+        if (currentCall && data.call_session_id === currentCall.call_session_id) {
+            frappe.show_alert({
+                message: `${data.user} rejected the call`,
+                indicator: 'orange'
+            }, 3);
+        }
+    });
+
+    // Listen for call ended/cancelled - close incoming call dialog
+    frappe.realtime.on('call_participant_left', (data) => {
+        // Close incoming call dialog if it exists
+        if (window.incomingCallDialogs && window.incomingCallDialogs[data.call_session_id]) {
+            const dialog = window.incomingCallDialogs[data.call_session_id];
+            if (dialog && dialog.is_visible) {
+                dialog.hide();
+            }
+            delete window.incomingCallDialogs[data.call_session_id];
+
+            if (data.call_ended) {
+                frappe.show_alert({
+                    message: '📞 Call ended',
+                    indicator: 'orange'
+                }, 2);
+            }
+        }
+    });
 }
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         add_extended_features_styles();
+        // Setup call listeners when frappe is ready
+        if (typeof frappe !== 'undefined' && frappe.realtime) {
+            setup_global_call_listeners();
+        }
     });
 } else {
     add_extended_features_styles();
+    // Setup call listeners when frappe is ready
+    if (typeof frappe !== 'undefined' && frappe.realtime) {
+        setup_global_call_listeners();
+    }
 }
 
 console.log('✅ F-Chat Extended Features loaded');
