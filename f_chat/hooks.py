@@ -33,9 +33,9 @@ app_include_js = [
     # "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js",
     # "assets/f_chat/js/chat_integratioonn.js",
     # "assets/f_chat/js/chat_realtimee.js"
-    "assets/f_chat/js/webrtc_fixed_implementation14.js",  # WebRTC module - MUST load first
+    "assets/f_chat/js/webrtc_fixed_implementation18.js",  # WebRTC module - MUST load first
     "assets/f_chat/js/nav_chatf109.js",
-    "assets/f_chat/js/chat_features_extended16.js",  # Extended features: email, voice, broadcast, calls
+    "assets/f_chat/js/chat_features_extended19.js",  # Extended features: email, voice, broadcast, calls
 
     # "assets/f_chat/js/nav_chat27.js",
 

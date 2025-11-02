@@ -6,6 +6,7 @@
 // ============================================================================
 
 let isRecordingVoice = false;
+let shouldSendRecording = false;  // NEW: Flag to track if recording should be sent
 let mediaRecorder = null;
 let audioChunks = [];
 let recordingStartTime = null;
@@ -170,15 +171,25 @@ async function start_voice_recording() {
         });
 
         mediaRecorder.addEventListener('stop', () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            send_voice_message(audioBlob);
+            // Only send if shouldSendRecording flag is true
+            if (shouldSendRecording) {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                send_voice_message(audioBlob);
+            } else {
+                // Recording was cancelled - just clear chunks
+                console.log('Recording cancelled - not sending');
+            }
 
             // Stop all tracks
             stream.getTracks().forEach(track => track.stop());
+
+            // Reset flags
+            shouldSendRecording = false;
         });
 
         mediaRecorder.start();
         isRecordingVoice = true;
+        shouldSendRecording = false;  // Will be set to true when user clicks send
 
         // Update UI
         update_voice_recording_ui(true);
@@ -200,8 +211,9 @@ async function start_voice_recording() {
     }
 }
 
-function stop_voice_recording() {
+function stop_voice_recording(send = true) {
     if (mediaRecorder && isRecordingVoice) {
+        shouldSendRecording = send;  // Set flag before stopping
         mediaRecorder.stop();
         isRecordingVoice = false;
         update_voice_recording_ui(false);
@@ -211,11 +223,9 @@ function stop_voice_recording() {
 
 function cancel_voice_recording() {
     if (mediaRecorder && isRecordingVoice) {
-        mediaRecorder.stop();
-        audioChunks = [];
-        isRecordingVoice = false;
-        update_voice_recording_ui(false);
-        stop_recording_timer();
+        // Stop recording without sending (send = false)
+        stop_voice_recording(false);
+        audioChunks = [];  // Clear audio chunks
 
         frappe.show_alert({
             message: '❌ Recording cancelled',
@@ -790,8 +800,7 @@ function leave_current_call() {
                 if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.cleanup_webrtc_connection) {
                     ChatWebRTC.cleanup_webrtc_connection();
                 } else {
-                    // Fallback to local cleanup
-                    cleanup_webrtc_connection();
+                    console.error('❌ ChatWebRTC module not available for cleanup');
                 }
 
                 // Hide call UI
@@ -878,42 +887,28 @@ function minimize_call_ui() {
 }
 
 function toggle_mute() {
-    // Use ChatWebRTC module if available
+    // Use ChatWebRTC module
     if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.toggle_microphone) {
         ChatWebRTC.toggle_microphone();
     } else {
-        // Fallback to local implementation
-        if (localStream) {
-            const audioTrack = localStream.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                const muteBtn = document.querySelector('#mute-btn');
-                if (muteBtn) {
-                    muteBtn.classList.toggle('muted');
-                    muteBtn.querySelector('i').className = audioTrack.enabled ? 'fa fa-microphone' : 'fa fa-microphone-slash';
-                }
-            }
-        }
+        console.error('❌ ChatWebRTC module not available');
+        frappe.show_alert({
+            message: '❌ Cannot toggle microphone - WebRTC module not loaded',
+            indicator: 'red'
+        }, 3);
     }
 }
 
 function toggle_video() {
-    // Use ChatWebRTC module if available
+    // Use ChatWebRTC module
     if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.toggle_camera) {
         ChatWebRTC.toggle_camera();
     } else {
-        // Fallback to local implementation
-        if (localStream) {
-            const videoTrack = localStream.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                const videoBtn = document.querySelector('#video-btn');
-                if (videoBtn) {
-                    videoBtn.classList.toggle('off');
-                    videoBtn.querySelector('i').className = videoTrack.enabled ? 'fa fa-video-camera' : 'fa fa-ban';
-                }
-            }
-        }
+        console.error('❌ ChatWebRTC module not available');
+        frappe.show_alert({
+            message: '❌ Cannot toggle camera - WebRTC module not loaded',
+            indicator: 'red'
+        }, 3);
     }
 }
 
@@ -961,234 +956,77 @@ function update_call_status_indicator(status, color) {
 }
 
 // ============================================================================
-// WEBRTC IMPLEMENTATION
+// NOTE: WebRTC implementation is handled by webrtc_fixed_implementation14.js
+// ============================================================================
+// The ChatWebRTC module provides all WebRTC functionality:
+// - ChatWebRTC.setup_webrtc_connection(callData)
+// - ChatWebRTC.cleanup_webrtc_connection()
+// - ChatWebRTC.toggle_microphone()
+// - ChatWebRTC.toggle_camera()
+// - ChatWebRTC.handle_incoming_call(data)
+// - ChatWebRTC.accept_incoming_call(data)
+// - ChatWebRTC.reject_incoming_call(data)
+//
+// Global variables (currentCall, peerConnection, localStream, remoteStream)
+// are declared in webrtc_fixed_implementation14.js
+
+// ============================================================================
+// VOICE RECORDING PROTECTION - AUTO CANCEL ON PAGE LEAVE OR CHAT CLOSE
 // ============================================================================
 
-async function setup_webrtc_connection(callData) {
-    try {
-        // Update call status indicator
-        update_call_status_indicator('Connecting...', 'blue');
-
-        // Check if getUserMedia is supported
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            // Fallback for older browsers or HTTP contexts
-            if (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia) {
-                frappe.show_alert({
-                    message: 'Please use a modern browser for better call quality',
-                    indicator: 'orange'
-                }, 3);
-            } else {
-                throw new Error('Your browser does not support audio/video calls. Please update your browser.');
-            }
+// Cancel recording if user navigates away or closes the page
+function setup_voice_recording_protection() {
+    // Cancel on page unload/navigation
+    window.addEventListener('beforeunload', (e) => {
+        if (isRecordingVoice) {
+            // Cancel without sending
+            stop_voice_recording(false);
+            audioChunks = [];
+            console.log('Recording cancelled due to page navigation');
         }
+    });
 
-        // Request user media with permission prompt
-        const constraints = {
-            audio: true,
-            video: callData.call_type === 'Video'
-        };
-
-        update_call_status_indicator('Requesting permissions...', 'blue');
-
-        try {
-            localStream = await navigator.mediaDevices.getUserMedia(constraints);
-            update_call_status_indicator('Connected', 'green');
-        } catch (permissionError) {
-            // Handle permission denied
-            if (permissionError.name === 'NotAllowedError' || permissionError.name === 'PermissionDeniedError') {
-                frappe.msgprint({
-                    title: 'Permission Required',
-                    indicator: 'red',
-                    message: `
-                        <div style="text-align: center; padding: 20px;">
-                            <div style="font-size: 48px; margin-bottom: 15px;">🎤</div>
-                            <h4>Microphone ${callData.call_type === 'Video' ? '& Camera' : ''} Permission Required</h4>
-                            <p style="margin: 15px 0; color: #666;">
-                                Please allow access to your ${callData.call_type === 'Video' ? 'microphone and camera' : 'microphone'} to join the call.
-                            </p>
-                            <p style="font-size: 12px; color: #888;">
-                                Click the <strong>🔒 lock icon</strong> in your browser's address bar to manage permissions.
-                            </p>
-                        </div>
-                    `
-                });
-                throw new Error('Permission denied');
-            } else if (permissionError.name === 'NotFoundError') {
-                frappe.msgprint({
-                    title: 'Device Not Found',
-                    indicator: 'red',
-                    message: `
-                        <div style="text-align: center; padding: 20px;">
-                            <div style="font-size: 48px; margin-bottom: 15px;">🎤❌</div>
-                            <h4>No ${callData.call_type === 'Video' ? 'Camera or ' : ''}Microphone Found</h4>
-                            <p style="margin: 15px 0; color: #666;">
-                                Please connect a ${callData.call_type === 'Video' ? 'camera and/or ' : ''}microphone to join the call.
-                            </p>
-                        </div>
-                    `
-                });
-                throw new Error('Device not found');
-            } else {
-                throw permissionError;
+    // Cancel when chat window/dropdown is closed
+    // This watches for when the chat interface is hidden
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                const target = mutation.target;
+                // Check if chat interface is being hidden
+                if (target.classList.contains('enhanced-message-area') ||
+                    target.classList.contains('chat-interface') ||
+                    target.id === 'enhanced-chat-interface') {
+                    const display = window.getComputedStyle(target).display;
+                    if (display === 'none' && isRecordingVoice) {
+                        console.log('Recording cancelled - chat interface closed');
+                        cancel_voice_recording();
+                    }
+                }
             }
-        }
-
-        // Display local video if video call
-        if (callData.call_type === 'Video') {
-            const localVideo = document.querySelector('#local-video');
-            if (localVideo) {
-                localVideo.srcObject = localStream;
-            }
-        }
-
-        // Create peer connection
-        const configuration = {
-            iceServers: callData.ice_servers || [
-                { urls: 'stun:stun.l.google.com:19302' }
-            ]
-        };
-
-        peerConnection = new RTCPeerConnection(configuration);
-
-        // Add local stream tracks
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
         });
+    });
 
-        // Handle remote stream
-        peerConnection.ontrack = (event) => {
-            if (!remoteStream) {
-                remoteStream = new MediaStream();
-                const remoteVideo = document.querySelector('#remote-video');
-                if (remoteVideo) {
-                    remoteVideo.srcObject = remoteStream;
-                }
-            }
-            remoteStream.addTrack(event.track);
-        };
-
-        // Handle ICE candidates
-        peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
-                frappe.call({
-                    method: 'f_chat.send_webrtc_signal',
-                    args: {
-                        call_session_id: callData.call_session_id,
-                        signal_type: 'ice-candidate',
-                        signal_data: JSON.stringify(event.candidate)
-                    }
+    // Start observing when DOM is ready
+    const startObserving = () => {
+        const chatContainers = document.querySelectorAll(
+            '.enhanced-message-area, .chat-interface, #enhanced-chat-interface'
+        );
+        chatContainers.forEach(container => {
+            if (container) {
+                observer.observe(container, {
+                    attributes: true,
+                    attributeFilter: ['style', 'class']
                 });
             }
-        };
+        });
+    };
 
-        // Create and send offer (if initiator)
-        if (callData.initiated_by === frappe.session.user) {
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-
-            frappe.call({
-                method: 'f_chat.send_webrtc_signal',
-                args: {
-                    call_session_id: callData.call_session_id,
-                    signal_type: 'offer',
-                    signal_data: JSON.stringify(offer)
-                }
-            });
-        }
-
-        // Listen for WebRTC signals
-        setup_webrtc_listeners(callData.call_session_id);
-
-    } catch (error) {
-        console.error('Error setting up WebRTC:', error);
-        frappe.show_alert({
-            message: '❌ Failed to setup call: ' + error.message,
-            indicator: 'red'
-        }, 5);
-
-        leave_current_call();
+    // Try to start observing immediately if DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startObserving);
+    } else {
+        startObserving();
     }
-}
-
-function setup_webrtc_listeners(callSessionId) {
-    // Listen for WebRTC signals via realtime
-    frappe.realtime.on('webrtc_signal', async (data) => {
-        if (data.call_session_id !== callSessionId) return;
-        if (data.from_user === frappe.session.user) return;
-
-        try {
-            const signalData = typeof data.signal_data === 'string'
-                ? JSON.parse(data.signal_data)
-                : data.signal_data;
-
-            if (data.signal_type === 'offer') {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(signalData));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-
-                frappe.call({
-                    method: 'f_chat.send_webrtc_signal',
-                    args: {
-                        call_session_id: callSessionId,
-                        signal_type: 'answer',
-                        signal_data: JSON.stringify(answer),
-                        target_user: data.from_user
-                    }
-                });
-
-            } else if (data.signal_type === 'answer') {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(signalData));
-
-            } else if (data.signal_type === 'ice-candidate') {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(signalData));
-            }
-        } catch (error) {
-            console.error('Error handling WebRTC signal:', error);
-        }
-    });
-
-    // Listen for call events
-    frappe.realtime.on('call_participant_left', (data) => {
-        if (data.call_session_id === callSessionId) {
-            if (data.call_ended) {
-                frappe.show_alert({
-                    message: '📞 Call ended',
-                    indicator: 'orange'
-                }, 3);
-                cleanup_webrtc_connection();
-                hide_call_ui();
-                hide_active_call_indicator();
-                currentCall = null;
-            }
-        }
-    });
-
-    // Listen for participant joined
-    frappe.realtime.on('call_participant_joined', (data) => {
-        if (data.call_session_id === callSessionId) {
-            frappe.show_alert({
-                message: `${data.user} joined the call`,
-                indicator: 'blue'
-            }, 2);
-        }
-    });
-}
-
-function cleanup_webrtc_connection() {
-    // Stop local stream
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-    }
-
-    // Close peer connection
-    if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-    }
-
-    // Clear remote stream
-    remoteStream = null;
 }
 
 // ============================================================================
@@ -1777,6 +1615,7 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         add_extended_features_styles();
         load_call_ui_template();  // Load call UI template
+        setup_voice_recording_protection();  // Setup voice recording auto-cancel
         // Setup call listeners when frappe is ready
         if (typeof frappe !== 'undefined' && frappe.realtime) {
             setup_global_call_listeners();
@@ -1785,6 +1624,7 @@ if (document.readyState === 'loading') {
 } else {
     add_extended_features_styles();
     load_call_ui_template();  // Load call UI template
+    setup_voice_recording_protection();  // Setup voice recording auto-cancel
     // Setup call listeners when frappe is ready
     if (typeof frappe !== 'undefined' && frappe.realtime) {
         setup_global_call_listeners();
