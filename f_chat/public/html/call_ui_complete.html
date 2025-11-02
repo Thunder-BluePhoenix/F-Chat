@@ -1,0 +1,607 @@
+<!-- 
+Call UI Template
+Place this in your chat interface HTML or inject via JavaScript
+-->
+
+<style>
+/* ============================================================================
+   CALL UI STYLES
+   ============================================================================ */
+
+#call-ui-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    background: #1a1a1a;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    display: none;
+    flex-direction: column;
+    z-index: 10000;
+    overflow: hidden;
+}
+
+#call-ui-container.active {
+    display: flex;
+}
+
+/* Video Container */
+.call-video-container {
+    flex: 1;
+    position: relative;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#remote-video, #remote-audio {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
+#local-video {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 240px;
+    height: 180px;
+    border-radius: 8px;
+    border: 2px solid #fff;
+    object-fit: cover;
+    background: #333;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Audio-only mode */
+.call-audio-only {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+}
+
+.call-avatar {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 60px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.call-user-name {
+    color: #fff;
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+#call-status-indicator {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 16px;
+    margin-bottom: 30px;
+}
+
+/* Call Controls */
+.call-controls {
+    background: rgba(26, 26, 26, 0.95);
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
+
+.call-control-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.call-control-btn:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.call-control-btn:active {
+    transform: scale(0.95);
+}
+
+/* Mute button */
+#mute-button {
+    background: #4CAF50;
+}
+
+#mute-button.muted {
+    background: #f44336;
+}
+
+/* Camera button */
+#camera-button {
+    background: #2196F3;
+}
+
+#camera-button.camera-off {
+    background: #757575;
+}
+
+/* End call button */
+#end-call-button {
+    background: #f44336;
+    width: 64px;
+    height: 64px;
+}
+
+#end-call-button:hover {
+    background: #d32f2f;
+}
+
+/* Call info bar */
+.call-info-bar {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+}
+
+.call-type-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.call-duration {
+    font-family: monospace;
+    font-size: 16px;
+}
+
+/* Incoming call popup */
+#incoming-call-popup {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 350px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    padding: 24px;
+    display: none;
+    z-index: 10001;
+    animation: slideInRight 0.3s ease;
+}
+
+#incoming-call-popup.active {
+    display: block;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.incoming-call-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.incoming-call-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #4CAF50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 12px;
+    animation: ring 1s ease infinite;
+}
+
+@keyframes ring {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.incoming-call-info h4 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.incoming-call-info p {
+    margin: 4px 0 0 0;
+    font-size: 14px;
+    color: #666;
+}
+
+.incoming-call-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.incoming-call-actions button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.accept-call-btn {
+    background: #4CAF50;
+    color: #fff;
+}
+
+.accept-call-btn:hover {
+    background: #45a049;
+}
+
+.reject-call-btn {
+    background: #f44336;
+    color: #fff;
+}
+
+.reject-call-btn:hover {
+    background: #da190b;
+}
+
+/* Participants list */
+.call-participants {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    padding: 12px 16px;
+    max-width: 250px;
+}
+
+.call-participants h5 {
+    margin: 0 0 8px 0;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.participant-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 13px;
+}
+
+.participant-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4CAF50;
+}
+
+.participant-status.joining {
+    background: #FFC107;
+}
+
+/* Connection quality indicator */
+.connection-quality {
+    position: absolute;
+    top: 20px;
+    right: 260px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #fff;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.quality-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.quality-good { background: #4CAF50; }
+.quality-fair { background: #FFC107; }
+.quality-poor { background: #f44336; }
+
+/* Permission help modal styles */
+.permission-help-modal {
+    background: #fff;
+    border-radius: 12px;
+    max-width: 600px;
+}
+
+.permission-help-modal h4 {
+    color: #333;
+    margin-bottom: 16px;
+}
+
+.permission-help-modal ol {
+    padding-left: 24px;
+    line-height: 1.6;
+}
+
+.permission-help-modal .alert {
+    margin-top: 20px;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 4px solid #ff9800;
+    background: #fff3e0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    #call-ui-container {
+        width: 100%;
+        height: 100vh;
+        border-radius: 0;
+    }
+    
+    #local-video {
+        width: 120px;
+        height: 90px;
+        bottom: 100px;
+        right: 10px;
+    }
+    
+    .call-controls {
+        padding: 16px;
+    }
+    
+    .call-control-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+    
+    #incoming-call-popup {
+        width: calc(100% - 40px);
+        right: 20px;
+    }
+    
+    .call-participants,
+    .connection-quality {
+        font-size: 11px;
+        padding: 8px 10px;
+    }
+}
+</style>
+
+<!-- Call UI Container -->
+<div id="call-ui-container">
+    <!-- Call info bar -->
+    <div class="call-info-bar">
+        <div>
+            <span class="call-type-badge" id="call-type-badge">Audio Call</span>
+        </div>
+        <div class="call-duration" id="call-duration">00:00</div>
+    </div>
+    
+    <!-- Video Container -->
+    <div class="call-video-container" id="call-video-container">
+        <!-- For video calls -->
+        <video id="remote-video" autoplay playsinline></video>
+        <video id="local-video" autoplay playsinline muted></video>
+        
+        <!-- For audio-only calls -->
+        <audio id="remote-audio" autoplay></audio>
+        
+        <!-- Audio-only UI -->
+        <div class="call-audio-only" id="audio-only-ui" style="display: none;">
+            <div class="call-avatar" id="call-avatar">👤</div>
+            <div class="call-user-name" id="remote-user-name">Connecting...</div>
+            <div id="call-status-indicator">Initializing call...</div>
+        </div>
+        
+        <!-- Participants list -->
+        <div class="call-participants" id="call-participants" style="display: none;">
+            <h5>In Call</h5>
+            <div id="participants-list"></div>
+        </div>
+        
+        <!-- Connection quality -->
+        <div class="connection-quality" id="connection-quality">
+            <div class="quality-indicator quality-good"></div>
+            <span>Connection: Good</span>
+        </div>
+    </div>
+    
+    <!-- Call Controls -->
+    <div class="call-controls">
+        <button class="call-control-btn" id="mute-button" onclick="ChatWebRTC.toggle_microphone()" title="Toggle Microphone">
+            🎤
+        </button>
+        
+        <button class="call-control-btn" id="camera-button" onclick="ChatWebRTC.toggle_camera()" title="Toggle Camera" style="display: none;">
+            📹
+        </button>
+        
+        <button class="call-control-btn" id="end-call-button" onclick="ChatWebRTC.leave_call()" title="End Call">
+            📞
+        </button>
+        
+        <button class="call-control-btn" id="screen-share-button" onclick="toggle_screen_share()" title="Share Screen" style="display: none;">
+            🖥️
+        </button>
+    </div>
+</div>
+
+<!-- Incoming Call Popup -->
+<div id="incoming-call-popup">
+    <div class="incoming-call-header">
+        <div class="incoming-call-icon">📞</div>
+        <div class="incoming-call-info">
+            <h4 id="incoming-caller-name">John Doe</h4>
+            <p id="incoming-call-type">Video Call</p>
+        </div>
+    </div>
+    
+    <div class="incoming-call-actions">
+        <button class="accept-call-btn" id="accept-call-btn">
+            ✅ Accept
+        </button>
+        <button class="reject-call-btn" id="reject-call-btn">
+            ❌ Decline
+        </button>
+    </div>
+</div>
+
+<script>
+// Initialize call duration timer
+let callDurationInterval = null;
+let callStartTime = null;
+
+function start_call_duration_timer() {
+    callStartTime = Date.now();
+    callDurationInterval = setInterval(() => {
+        const duration = Math.floor((Date.now() - callStartTime) / 1000);
+        const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
+        const seconds = (duration % 60).toString().padStart(2, '0');
+        document.getElementById('call-duration').textContent = `${minutes}:${seconds}`;
+    }, 1000);
+}
+
+function stop_call_duration_timer() {
+    if (callDurationInterval) {
+        clearInterval(callDurationInterval);
+        callDurationInterval = null;
+    }
+}
+
+// Show/hide call UI based on call type
+function show_call_ui(callType) {
+    const container = document.getElementById('call-ui-container');
+    const videoContainer = document.getElementById('call-video-container');
+    const audioOnlyUI = document.getElementById('audio-only-ui');
+    const cameraButton = document.getElementById('camera-button');
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    const typeBadge = document.getElementById('call-type-badge');
+    
+    container.classList.add('active');
+    typeBadge.textContent = `${callType} Call`;
+    
+    if (callType === 'Video') {
+        audioOnlyUI.style.display = 'none';
+        cameraButton.style.display = 'flex';
+        localVideo.style.display = 'block';
+        remoteVideo.style.display = 'block';
+        videoContainer.style.background = '#000';
+    } else {
+        audioOnlyUI.style.display = 'flex';
+        cameraButton.style.display = 'none';
+        localVideo.style.display = 'none';
+        remoteVideo.style.display = 'none';
+    }
+    
+    start_call_duration_timer();
+}
+
+function hide_call_ui() {
+    const container = document.getElementById('call-ui-container');
+    container.classList.remove('active');
+    stop_call_duration_timer();
+}
+
+// Incoming call popup functions
+function show_incoming_call_popup(callerName, callType, callSessionId) {
+    const popup = document.getElementById('incoming-call-popup');
+    document.getElementById('incoming-caller-name').textContent = callerName;
+    document.getElementById('incoming-call-type').textContent = `${callType} Call`;
+    popup.classList.add('active');
+    
+    // Setup button handlers
+    document.getElementById('accept-call-btn').onclick = () => {
+        accept_incoming_call(callSessionId);
+        popup.classList.remove('active');
+    };
+    
+    document.getElementById('reject-call-btn').onclick = () => {
+        reject_incoming_call(callSessionId);
+        popup.classList.remove('active');
+    };
+}
+
+function hide_incoming_call_popup() {
+    const popup = document.getElementById('incoming-call-popup');
+    popup.classList.remove('active');
+}
+
+// Placeholder functions - implement these based on your call management API
+function accept_incoming_call(callSessionId) {
+    frappe.call({
+        method: 'f_chat.join_call',
+        args: { call_session_id: callSessionId },
+        callback: function(response) {
+            if (response.message && response.message.success) {
+                ChatWebRTC.setup_webrtc_connection(response.message.data);
+                show_call_ui(response.message.data.call_type);
+            }
+        }
+    });
+}
+
+function reject_incoming_call(callSessionId) {
+    frappe.call({
+        method: 'f_chat.reject_call',
+        args: { call_session_id: callSessionId }
+    });
+}
+
+function toggle_screen_share() {
+    frappe.show_alert({
+        message: '🖥️ Screen sharing coming soon!',
+        indicator: 'blue'
+    }, 3);
+}
+
+// Listen for incoming calls
+frappe.realtime.on('call_initiated', (data) => {
+    if (data.participants.includes(frappe.session.user) && 
+        data.initiated_by !== frappe.session.user) {
+        const callerName = data.initiated_by; // You can fetch full name if needed
+        show_incoming_call_popup(callerName, data.call_type, data.call_session_id);
+    }
+});
+</script>

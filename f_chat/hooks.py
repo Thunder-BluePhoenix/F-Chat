@@ -212,6 +212,9 @@ scheduler_events = {
         #     "f_chat.APIs.sap.send_sap_error_email.uncheck_sap_error_email",
         #     "f_chat.APIs.req_for_quotation.rfq_reminder.quotation_count_reminder_mail"
         # ],
+        "*/5 * * * *": [
+            "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.cleanup_stale_users"
+        ],
         "0 2 * * *": [  # Run at 2 AM daily
             "f_chat.f_chat.maintenance.cleanup_deleted_files"
         ],
@@ -291,7 +294,7 @@ override_whitelisted_methods = {
     "f_chat.join_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.join_chat_room",
     "f_chat.leave_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.leave_chat_room",
     "f_chat.send_typing_indicator": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.send_typing_indicator",
-    "f_chat.get_online_users": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.get_online_users",
+    # "f_chat.get_online_users": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.get_online_users",
     
     # Search and Analytics APIs
     "f_chat.search_messages": "f_chat.APIs.notification_chatroom.chat_apis.search_analytics.search_messages",
@@ -333,6 +336,14 @@ override_whitelisted_methods = {
     "f_chat.send_webrtc_signal": "f_chat.APIs.notification_chatroom.chat_apis.call_management.send_webrtc_signal",
     "f_chat.get_active_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.get_active_call",
     "f_chat.get_call_history": "f_chat.APIs.notification_chatroom.chat_apis.call_management.get_call_history",
+
+    "f_chat.update_user_status": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.update_user_status",
+    "f_chat.get_user_status": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.get_user_status",
+    "f_chat.get_online_users": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.get_online_users",
+    "f_chat.heartbeat": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.heartbeat",
+    "f_chat.user_typing": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.user_typing",
+    "f_chat.join_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.join_room",
+    "f_chat.leave_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.leave_room",
 
 }
 # Request Events

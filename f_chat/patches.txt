@@ -6,3 +6,5 @@
 # Patches added in this section will be executed after doctypes are migrated
 f_chat.patches.chat_application_setup # 09.09.25 -10
 f_chat.patches.fix_chat_errors_v2 # 01.11.27 - Fix folder and field error
+f_chat.patches.fix_chat_status_to_activity
+f_chat.patches.validate_schemas
