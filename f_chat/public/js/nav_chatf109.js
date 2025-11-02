@@ -181,6 +181,15 @@ function add_enhanced_chat_icon_to_navbar() {
                                 </div>
                             </div>
                             <div class="room-actions">
+                                <button onclick="initiate_call('Audio')" class="header-action-btn" title="Audio Call">
+                                    📞
+                                </button>
+                                <button onclick="initiate_call('Video')" class="header-action-btn" title="Video Call">
+                                    📹
+                                </button>
+                                <button onclick="show_broadcast_modal()" class="header-action-btn" title="Broadcast Message">
+                                    📢
+                                </button>
                                 <span class="online-indicator">🟢</span>
                             </div>
                         </div>
@@ -207,7 +216,13 @@ function add_enhanced_chat_icon_to_navbar() {
                             
                             <!-- Input Row -->
                             <div class="input-row-enhanced">
-                                <input type="text" id="enhanced-message-input" class="message-input-enhanced" 
+                                <button class="attach-btn-enhanced" onclick="start_voice_recording()" id="voice-record-btn" title="Voice Message">
+                                    <i class="fa fa-microphone"></i>
+                                </button>
+                                <button class="attach-btn-enhanced" onclick="open_file_picker()" id="attach-file-btn" title="Attach File">
+                                    <i class="fa fa-paperclip"></i>
+                                </button>
+                                <input type="text" id="enhanced-message-input" class="message-input-enhanced"
                                        placeholder="Type your message..." onkeydown="handle_enhanced_input_keydown(event)">
                                 <button class="send-btn-enhanced" onclick="send_enhanced_message()" id="enhanced-send-btn">
                                     <i class="fa fa-paper-plane"></i>
@@ -636,7 +651,47 @@ function add_enhanced_chat_styles() {
             cursor: not-allowed !important;
             transform: none !important;
         }
-        
+
+        /* Attach Buttons */
+        .attach-btn-enhanced {
+            background: #f8f9fa !important;
+            color: #6c757d !important;
+            border: none !important;
+            border-radius: 50% !important;
+            width: 36px !important;
+            height: 36px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            font-size: 16px !important;
+        }
+
+        .attach-btn-enhanced:hover {
+            background: #e9ecef !important;
+            color: #495057 !important;
+            transform: scale(1.05) !important;
+        }
+
+        /* Header Action Buttons */
+        .header-action-btn {
+            background: none !important;
+            border: none !important;
+            font-size: 20px !important;
+            cursor: pointer !important;
+            padding: 6px !important;
+            border-radius: 6px !important;
+            transition: all 0.2s !important;
+            opacity: 0.8 !important;
+        }
+
+        .header-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2) !important;
+            opacity: 1 !important;
+            transform: scale(1.1) !important;
+        }
+
         /* Modal Styles */
         .chat-modal-overlay-enhanced {
             position: fixed;
@@ -3971,6 +4026,11 @@ function load_enhanced_room_messages(roomId) {
         `;
     }
 
+    // Check for active calls
+    if (typeof check_and_show_active_call === 'function') {
+        check_and_show_active_call(roomId);
+    }
+
     frappe.call({
         method: "f_chat.get_chat_messages",
         args: { room_id: roomId, page: 1, page_size: 50 },
@@ -4060,7 +4120,49 @@ function display_enhanced_messages(messages) {
 
                 
                 <div class="message-content-enhanced">${message.is_deleted ? '<em>This message was deleted</em>' : (message.message_content || '')}</div>
-                
+
+                ${message.attachments && message.attachments.length > 0 ? `
+                    <div class="message-attachments-enhanced">
+                        ${message.attachments.map(att => {
+                            const isImage = att.file_type && att.file_type.startsWith('image/');
+                            const isAudio = att.file_type && att.file_type.startsWith('audio/');
+                            const fileSize = att.file_size ? formatFileSize(att.file_size) : '';
+
+                            if (isImage) {
+                                return `
+                                    <div class="attachment-image">
+                                        <img src="${att.file_url}" alt="${att.file_name}" onclick="window.open('${att.file_url}', '_blank')" style="max-width: 100%; border-radius: 8px; cursor: pointer; margin-top: 8px;">
+                                    </div>
+                                `;
+                            } else if (isAudio) {
+                                return `
+                                    <div class="attachment-audio">
+                                        <audio controls style="width: 100%; margin-top: 8px;">
+                                            <source src="${att.file_url}" type="${att.file_type}">
+                                            Your browser does not support audio playback.
+                                        </audio>
+                                        <div style="font-size: 11px; color: #999; margin-top: 4px;">${att.file_name} (${fileSize})</div>
+                                    </div>
+                                `;
+                            } else {
+                                const fileIcon = getFileIcon(att.file_type);
+                                return `
+                                    <div class="attachment-file">
+                                        <a href="${att.file_url}" target="_blank" style="display: flex; align-items: center; gap: 8px; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 6px; text-decoration: none; color: inherit; margin-top: 8px;">
+                                            <span style="font-size: 24px;">${fileIcon}</span>
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${att.file_name}</div>
+                                                <div style="font-size: 11px; color: #999;">${fileSize}</div>
+                                            </div>
+                                            <span style="font-size: 18px;">⬇</span>
+                                        </a>
+                                    </div>
+                                `;
+                            }
+                        }).join('')}
+                    </div>
+                ` : ''}
+
                 <div class="message-time-enhanced">
                     <span>${time}</span>
                     ${message.is_edited ? '<span style="font-style: italic; margin-left: 8px;">edited</span>' : ''}
@@ -4068,16 +4170,19 @@ function display_enhanced_messages(messages) {
                 
                 ${!message.is_deleted ? `
                     <div class="message-actions-enhanced">
-                        <button class="message-action-btn-enhanced" 
-                            onclick="event.stopPropagation(); reply_to_message_enhanced('${message.name}', '${escapedContent.substring(0, 50)}', '${escapedSender}')" 
+                        <button class="message-action-btn-enhanced"
+                            onclick="event.stopPropagation(); reply_to_message_enhanced('${message.name}', '${escapedContent.substring(0, 50)}', '${escapedSender}')"
                             title="Reply">↩</button>
                         ${canEdit ? `
-                            <button class="message-action-btn-enhanced" 
-                                onclick="event.stopPropagation(); edit_message_enhanced('${message.name}', '${escapedContent}')" 
+                            <button class="message-action-btn-enhanced"
+                                onclick="event.stopPropagation(); edit_message_enhanced('${message.name}', '${escapedContent}')"
                                 title="Edit">✏</button>` : ''}
+                        <button class="message-action-btn-enhanced"
+                            onclick="event.stopPropagation(); send_message_via_email('${message.name}', '${escapedContent}', '${escapedSender}')"
+                            title="Send via Email">📧</button>
                         ${canDelete ? `
-                            <button class="message-action-btn-enhanced" 
-                                onclick="event.stopPropagation(); delete_message_enhanced('${message.name}')" 
+                            <button class="message-action-btn-enhanced"
+                                onclick="event.stopPropagation(); delete_message_enhanced('${message.name}')"
                                 title="Delete" style="color: #dc3545 !important;">🗑</button>` : ''}
                     </div>
                 ` : ''}
@@ -4260,6 +4365,30 @@ function handle_enhanced_input_keydown(event) {
             cancel_reply();
         }
     }
+}
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Helper function to get file icon based on type
+function getFileIcon(fileType) {
+    if (!fileType) return '📄';
+
+    if (fileType.includes('pdf')) return '📕';
+    if (fileType.includes('word') || fileType.includes('document')) return '📘';
+    if (fileType.includes('sheet') || fileType.includes('excel')) return '📗';
+    if (fileType.includes('presentation') || fileType.includes('powerpoint')) return '📙';
+    if (fileType.includes('text')) return '📝';
+    if (fileType.includes('video')) return '🎬';
+    if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('compressed')) return '📦';
+
+    return '📄';
 }
 
 function mark_enhanced_room_as_read(roomId) {

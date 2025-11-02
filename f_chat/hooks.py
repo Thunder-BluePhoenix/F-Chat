@@ -26,18 +26,20 @@ app_license = "gpl-3.0"
 app_include_css = [
     # "assets/f_chat/css/chat_styles.css",
     # "assets/f_chat/css/chat_enhanced.css"
-    "assets/f_chat/css/nav_chat_style2.css"
+    "assets/f_chat/css/nav_chat_style3.css"
 ]
 # app_include_js = "/assets/f_chat/js/f_chat.js"
 app_include_js = [
     # "https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js",
     # "assets/f_chat/js/chat_integratioonn.js",
-    # "assets/f_chat/js/chat_realtimee.js" 
-    "assets/f_chat/js/nav_chatf10.js",
+    # "assets/f_chat/js/chat_realtimee.js"
+    "assets/f_chat/js/webrtc_fixed_implementation18.js",  # WebRTC module - MUST load first
+    "assets/f_chat/js/nav_chatf109.js",
+    "assets/f_chat/js/chat_features_extended19.js",  # Extended features: email, voice, broadcast, calls
 
     # "assets/f_chat/js/nav_chat27.js",
 
-    # "assets/f_chat/js/nav_chat_enhanced3.js"  
+    # "assets/f_chat/js/nav_chat_enhanced3.js"
 ]
 
 # include js, css files in header of desk.html
@@ -45,8 +47,8 @@ app_include_js = [
 # app_include_js = "/assets/f_chat/js/f_chat.js"
 website_context = {
     "chat_enabled": True,
-    "max_file_size": 26214400,  # 10MB
-    "supported_file_types": ["image/*", "application/pdf", "text/*", ".doc", ".docx", ".xls", ".xlsx"]
+    "max_file_size": 26214400,  # 25MB
+    "supported_file_types": ["image/*", "application/pdf", "text/*", ".doc", ".docx", ".xls", ".xlsx", "audio/*", "video/*"]
 }
 # include js, css files in header of web template
 # web_include_css = "/assets/f_chat/css/f_chat.css"
@@ -55,7 +57,8 @@ websocket_events = {
     "chat_message": "f_chat.f_chat.doctype.chat_message.chat_message.handle_websocket_message",
     "chat_room_join": "f_chat.f_chat.doctype.chat_message.chat_message.handle_user_join_room",
     "chat_room_leave": "f_chat.f_chat.doctype.chat_message.chat_message.handle_user_leave_room",
-    "typing_indicator": "f_chat.f_chat.doctype.chat_message.chat_message.handle_typing_indicator"
+    "typing_indicator": "f_chat.f_chat.doctype.chat_message.chat_message.handle_typing_indicator",
+    "call_signal": "f_chat.APIs.notification_chatroom.chat_apis.call_management.send_webrtc_signal"
 }
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "f_chat/public/scss/website"
@@ -210,6 +213,9 @@ scheduler_events = {
         #     "f_chat.APIs.sap.send_sap_error_email.uncheck_sap_error_email",
         #     "f_chat.APIs.req_for_quotation.rfq_reminder.quotation_count_reminder_mail"
         # ],
+        "*/5 * * * *": [
+            "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.cleanup_stale_users"
+        ],
         "0 2 * * *": [  # Run at 2 AM daily
             "f_chat.f_chat.maintenance.cleanup_deleted_files"
         ],
@@ -289,7 +295,7 @@ override_whitelisted_methods = {
     "f_chat.join_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.join_chat_room",
     "f_chat.leave_chat_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.leave_chat_room",
     "f_chat.send_typing_indicator": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.send_typing_indicator",
-    "f_chat.get_online_users": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.get_online_users",
+    # "f_chat.get_online_users": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events.get_online_users",
     
     # Search and Analytics APIs
     "f_chat.search_messages": "f_chat.APIs.notification_chatroom.chat_apis.search_analytics.search_messages",
@@ -313,6 +319,32 @@ override_whitelisted_methods = {
     "f_chat.check_room_permissions": "f_chat.APIs.notification_chatroom.chat_apis.room_management.check_room_permissions",
     "f_chat.get_user_room_role": "f_chat.APIs.notification_chatroom.chat_apis.room_management.get_user_room_role",
 
+    # Email Integration APIs
+    "f_chat.send_message_via_email": "f_chat.APIs.notification_chatroom.chat_apis.email_integration.send_message_via_email",
+    "f_chat.send_file_via_email": "f_chat.APIs.notification_chatroom.chat_apis.email_integration.send_file_via_email",
+    "f_chat.get_available_email_recipients": "f_chat.APIs.notification_chatroom.chat_apis.email_integration.get_available_email_recipients",
+
+    # Broadcast APIs
+    "f_chat.send_broadcast_message": "f_chat.APIs.notification_chatroom.chat_apis.broadcast.send_broadcast_message",
+    "f_chat.get_broadcast_rooms": "f_chat.APIs.notification_chatroom.chat_apis.broadcast.get_broadcast_rooms",
+    "f_chat.get_broadcast_history": "f_chat.APIs.notification_chatroom.chat_apis.broadcast.get_broadcast_history",
+
+    # Call Management APIs
+    "f_chat.initiate_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.initiate_call",
+    "f_chat.join_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.join_call",
+    "f_chat.leave_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.leave_call",
+    "f_chat.reject_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.reject_call",
+    "f_chat.send_webrtc_signal": "f_chat.APIs.notification_chatroom.chat_apis.call_management.send_webrtc_signal",
+    "f_chat.get_active_call": "f_chat.APIs.notification_chatroom.chat_apis.call_management.get_active_call",
+    "f_chat.get_call_history": "f_chat.APIs.notification_chatroom.chat_apis.call_management.get_call_history",
+
+    "f_chat.update_user_status": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.update_user_status",
+    "f_chat.get_user_status": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.get_user_status",
+    "f_chat.get_online_users": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.get_online_users",
+    "f_chat.heartbeat": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.heartbeat",
+    "f_chat.user_typing": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.user_typing",
+    "f_chat.join_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.join_room",
+    "f_chat.leave_room": "f_chat.APIs.notification_chatroom.chat_apis.realtime_events_fixed.leave_room",
 
 }
 # Request Events
