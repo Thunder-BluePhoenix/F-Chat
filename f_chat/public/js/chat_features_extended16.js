@@ -11,11 +11,9 @@ let audioChunks = [];
 let recordingStartTime = null;
 let recordingTimer = null;
 
-// Call state
-let currentCall = null;
-let peerConnection = null;
-let localStream = null;
-let remoteStream = null;
+// Call state - Note: currentCall, peerConnection, localStream, remoteStream
+// are declared in webrtc_fixed_implementation.js (loaded first)
+// We'll access them as global variables
 let incomingCallNotification = null;
 
 // ============================================================================
@@ -255,12 +253,13 @@ function update_voice_recording_ui(recording) {
     const attachBtn = document.querySelector('#attach-file-btn');
 
     if (recording) {
+        // Don't hide the input area, show recording UI above it
         // Hide regular input
         if (messageInput) messageInput.style.display = 'none';
         if (sendBtn) sendBtn.style.display = 'none';
         if (attachBtn) attachBtn.style.display = 'none';
 
-        // Show recording UI
+        // Show recording UI ABOVE the input area
         let recordingUI = document.querySelector('#voice-recording-ui');
         if (!recordingUI) {
             recordingUI = document.createElement('div');
@@ -279,7 +278,8 @@ function update_voice_recording_ui(recording) {
                     <i class="fa fa-check"></i>
                 </button>
             `;
-            inputArea.appendChild(recordingUI);
+            // Insert BEFORE the input area (above it)
+            inputArea.parentElement.insertBefore(recordingUI, inputArea);
         }
         recordingUI.style.display = 'flex';
 
@@ -681,7 +681,7 @@ function initiate_call(callType) {
                 indicator: 'blue'
             }, 2);
 
-            // Show call UI immediately
+            // Show call UI from call_ui_complete.html
             show_call_ui(callType);
             update_call_status_indicator('Initiating...', 'blue');
 
@@ -698,8 +698,17 @@ function initiate_call(callType) {
                         // Update status to Ringing
                         update_call_status_indicator('Ringing...', 'blue');
 
-                        // Setup WebRTC
-                        setup_webrtc_connection(currentCall);
+                        // Use ChatWebRTC module from webrtc_fixed_implementation.js
+                        if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.setup_webrtc_connection) {
+                            ChatWebRTC.setup_webrtc_connection(currentCall);
+                        } else {
+                            console.error('❌ ChatWebRTC module not loaded!');
+                            frappe.show_alert({
+                                message: 'WebRTC module not loaded. Please refresh the page.',
+                                indicator: 'red'
+                            }, 5);
+                            hide_call_ui();
+                        }
 
                         // Check for active call
                         check_and_show_active_call(currentOpenRoom);
@@ -709,6 +718,7 @@ function initiate_call(callType) {
                             message: '❌ Failed to initiate call: ' + (response.message?.error?.message || 'Unknown error'),
                             indicator: 'red'
                         }, 5);
+                        hide_call_ui();
                     }
                 },
                 error: function(err) {
@@ -716,6 +726,7 @@ function initiate_call(callType) {
                         message: '❌ Error initiating call: ' + err.message,
                         indicator: 'red'
                     }, 5);
+                    hide_call_ui();
                 }
             });
         }
@@ -734,11 +745,20 @@ function join_current_call(callSessionId) {
                     indicator: 'green'
                 }, 2);
 
-                // Setup WebRTC
-                setup_webrtc_connection(currentCall);
-
                 // Show call UI
                 show_call_ui(currentCall.call_type);
+
+                // Use ChatWebRTC module from webrtc_fixed_implementation.js
+                if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.setup_webrtc_connection) {
+                    ChatWebRTC.setup_webrtc_connection(currentCall);
+                } else {
+                    console.error('❌ ChatWebRTC module not loaded!');
+                    frappe.show_alert({
+                        message: 'WebRTC module not loaded. Please refresh the page.',
+                        indicator: 'red'
+                    }, 5);
+                    hide_call_ui();
+                }
 
                 // Update indicator
                 check_and_show_active_call(currentOpenRoom);
@@ -766,8 +786,13 @@ function leave_current_call() {
                     indicator: 'green'
                 }, 2);
 
-                // Cleanup WebRTC
-                cleanup_webrtc_connection();
+                // Cleanup WebRTC using ChatWebRTC module
+                if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.cleanup_webrtc_connection) {
+                    ChatWebRTC.cleanup_webrtc_connection();
+                } else {
+                    // Fallback to local cleanup
+                    cleanup_webrtc_connection();
+                }
 
                 // Hide call UI
                 hide_call_ui();
@@ -853,28 +878,40 @@ function minimize_call_ui() {
 }
 
 function toggle_mute() {
-    if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) {
-            audioTrack.enabled = !audioTrack.enabled;
-            const muteBtn = document.querySelector('#mute-btn');
-            if (muteBtn) {
-                muteBtn.classList.toggle('muted');
-                muteBtn.querySelector('i').className = audioTrack.enabled ? 'fa fa-microphone' : 'fa fa-microphone-slash';
+    // Use ChatWebRTC module if available
+    if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.toggle_microphone) {
+        ChatWebRTC.toggle_microphone();
+    } else {
+        // Fallback to local implementation
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                const muteBtn = document.querySelector('#mute-btn');
+                if (muteBtn) {
+                    muteBtn.classList.toggle('muted');
+                    muteBtn.querySelector('i').className = audioTrack.enabled ? 'fa fa-microphone' : 'fa fa-microphone-slash';
+                }
             }
         }
     }
 }
 
 function toggle_video() {
-    if (localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) {
-            videoTrack.enabled = !videoTrack.enabled;
-            const videoBtn = document.querySelector('#video-btn');
-            if (videoBtn) {
-                videoBtn.classList.toggle('off');
-                videoBtn.querySelector('i').className = videoTrack.enabled ? 'fa fa-video-camera' : 'fa fa-ban';
+    // Use ChatWebRTC module if available
+    if (typeof ChatWebRTC !== 'undefined' && ChatWebRTC.toggle_camera) {
+        ChatWebRTC.toggle_camera();
+    } else {
+        // Fallback to local implementation
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                const videoBtn = document.querySelector('#video-btn');
+                if (videoBtn) {
+                    videoBtn.classList.toggle('off');
+                    videoBtn.querySelector('i').className = videoTrack.enabled ? 'fa fa-video-camera' : 'fa fa-ban';
+                }
             }
         }
     }
@@ -1707,10 +1744,39 @@ function setup_global_call_listeners() {
     });
 }
 
+// Load call UI HTML template
+function load_call_ui_template() {
+    // Check if already loaded
+    if (document.getElementById('call-ui-container')) {
+        console.log('✅ Call UI already loaded');
+        return;
+    }
+
+    // Fetch and inject call UI HTML
+    fetch('/assets/f_chat/html/call_ui_complete.html')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to load call UI template');
+            }
+            return response.text();
+        })
+        .then(html => {
+            // Inject HTML into page
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            document.body.appendChild(tempDiv);
+            console.log('✅ Call UI template loaded');
+        })
+        .catch(err => {
+            console.error('❌ Error loading call UI template:', err);
+        });
+}
+
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         add_extended_features_styles();
+        load_call_ui_template();  // Load call UI template
         // Setup call listeners when frappe is ready
         if (typeof frappe !== 'undefined' && frappe.realtime) {
             setup_global_call_listeners();
@@ -1718,10 +1784,23 @@ if (document.readyState === 'loading') {
     });
 } else {
     add_extended_features_styles();
+    load_call_ui_template();  // Load call UI template
     // Setup call listeners when frappe is ready
     if (typeof frappe !== 'undefined' && frappe.realtime) {
         setup_global_call_listeners();
     }
 }
+
+// ============================================================================
+// EXPORT FUNCTIONS GLOBALLY (for onclick handlers)
+// ============================================================================
+window.initiate_call = initiate_call;
+window.join_current_call = join_current_call;
+window.leave_current_call = leave_current_call;
+window.show_broadcast_modal = show_broadcast_modal;
+window.start_voice_recording = start_voice_recording;
+window.stop_voice_recording = stop_voice_recording;
+window.open_file_picker = open_file_picker;
+window.send_message_via_email = send_message_via_email;
 
 console.log('✅ F-Chat Extended Features loaded');

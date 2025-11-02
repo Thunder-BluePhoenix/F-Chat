@@ -79,8 +79,12 @@ def validate_all_schemas():
             print(f"   ❌ {doctype_name} is missing")
         elif result["status"] == "invalid":
             results["invalid"].append(doctype_name)
-            print(f"   ⚠️  {doctype_name} has issues: {result['error']}")
-        
+            # Check if there's an error message or warnings
+            if result.get("error"):
+                print(f"   ⚠️  {doctype_name} has issues: {result['error']}")
+            else:
+                print(f"   ⚠️  {doctype_name} has issues (see warnings below)")
+
         if result.get("warnings"):
             results["warnings"].extend(result["warnings"])
             for warning in result["warnings"]:
@@ -388,8 +392,11 @@ WHERE u.name IS NULL;
     print("-- Always backup your database first!")
 
 
-# Main execution
-if __name__ == "__main__":
+
+
+
+
+def execute():
     try:
         # Run validation
         results = validate_all_schemas()
@@ -413,3 +420,8 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Validation failed with error: {str(e)}")
         frappe.log_error(f"Schema validation error: {str(e)}")
+
+
+# Main execution
+if __name__ == "__main__":
+    execute()

@@ -6,13 +6,13 @@
  */
 
 // ============================================================================
-// GLOBAL WEBRTC STATE
+// GLOBAL WEBRTC STATE (using var for true global scope)
 // ============================================================================
-let peerConnection = null;
-let localStream = null;
-let remoteStream = null;
-let currentCall = null;
-let dataChannel = null;
+var peerConnection = null;
+var localStream = null;
+var remoteStream = null;
+var currentCall = null;
+var dataChannel = null;
 
 // WebRTC Configuration
 const rtcConfiguration = {
@@ -600,9 +600,22 @@ function update_camera_button(isEnabled) {
 }
 
 function hide_call_ui() {
+    // Hide call UI from call_ui_complete.html
     const callUI = document.getElementById('call-ui-container');
     if (callUI) {
-        callUI.style.display = 'none';
+        callUI.classList.remove('active');
+    }
+
+    // Also hide call UI from chat_features (if using custom UI)
+    const customCallUI = document.querySelector('#call-ui-overlay');
+    if (customCallUI) {
+        customCallUI.style.display = 'none';
+    }
+
+    // Also trigger chat_features leave_current_call if it exists
+    if (typeof window.leave_current_call === 'function') {
+        // Don't call it if we're already in the process of leaving
+        // Just ensure the UI is hidden
     }
 }
 

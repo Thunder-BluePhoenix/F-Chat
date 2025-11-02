@@ -5,6 +5,7 @@
 import frappe
 from frappe import _
 from frappe.utils import now_datetime, get_datetime
+from datetime import timedelta
 import json
 
 # ============================================================================
@@ -483,7 +484,7 @@ def cleanup_stale_users():
     """
     try:
         # Mark users as offline if no activity in last 10 minutes
-        stale_threshold = get_datetime() - frappe.utils.timedelta(minutes=10)
+        stale_threshold = get_datetime() - timedelta(minutes=10)
         
         frappe.db.sql("""
             UPDATE `tabChat User Activity`
